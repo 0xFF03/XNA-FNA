@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "KHTuuwBoEGQ=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\MyGame\\MyGame.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Petri\\.nuget\\packages\\aelsi2.facepunch.steamworks\\2.3.4\\aelsi2.facepunch.steamworks.2.3.4.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\aether.physics2d\\2.2.0\\aether.physics2d.2.2.0.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\cyotek.drawing.bitmapfont\\2.0.4\\cyotek.drawing.bitmapfont.2.0.4.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\flecs.net.bindings.release\\4.0.3\\flecs.net.bindings.release.4.0.3.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\flecs.net.native.release\\4.0.3\\flecs.net.native.release.4.0.3.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\flecs.net.release\\4.0.3\\flecs.net.release.4.0.3.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\fontstashsharp.base\\1.1.10\\fontstashsharp.base.1.1.10.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\fontstashsharp.platformagnostic\\1.4.0\\fontstashsharp.platformagnostic.1.4.0.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\fontstashsharp.rasterizers.stbtruetypesharp\\1.1.10\\fontstashsharp.rasterizers.stbtruetypesharp.1.1.10.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\litedb\\5.0.21\\litedb.5.0.21.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\stbimagesharp\\2.30.15\\stbimagesharp.2.30.15.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\stbtruetypesharp\\1.26.12\\stbtruetypesharp.1.26.12.nupkg.sha512"
+  ],
+  "logs": []
+}

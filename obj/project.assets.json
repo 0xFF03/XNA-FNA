@@ -1,0 +1,830 @@
+{
+  "version": 4,
+  "targets": {
+    "net10.0": {
+      "aelsi2.Facepunch.Steamworks/2.3.4": {
+        "type": "package",
+        "compile": {
+          "ref/netstandard2.1/Facepunch.Steamworks.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/libsteam_api.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x86/native/libsteam_api.so": {
+            "assetType": "native",
+            "rid": "linux-x86"
+          },
+          "runtimes/osx-x64/native/libsteam_api.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/unix/lib/netstandard2.1/Facepunch.Steamworks.dll": {
+            "assetType": "runtime",
+            "rid": "unix"
+          },
+          "runtimes/win-x64/native/steam_api.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/steam_api.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win/lib/netstandard2.1/Facepunch.Steamworks.dll": {
+            "assetType": "runtime",
+            "rid": "win"
+          }
+        }
+      },
+      "Aether.Physics2D/2.2.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/Aether.Physics2D.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Aether.Physics2D.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Cyotek.Drawing.BitmapFont/2.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Flecs.NET.Bindings.Release/4.0.3": {
+        "type": "package",
+        "dependencies": {
+          "Flecs.NET.Native.Release": "4.0.3"
+        },
+        "compile": {
+          "lib/net8.0/Flecs.NET.Bindings.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/Flecs.NET.Bindings.dll": {}
+        }
+      },
+      "Flecs.NET.Native.Release/4.0.3": {
+        "type": "package",
+        "build": {
+          "buildTransitive/Flecs.NET.Native.Release.props": {},
+          "buildTransitive/Flecs.NET.Native.Release.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/ios-arm64/native/libflecs.dylib": {
+            "assetType": "native",
+            "rid": "ios-arm64"
+          },
+          "runtimes/iossimulator-arm64/native/libflecs.dylib": {
+            "assetType": "native",
+            "rid": "iossimulator-arm64"
+          },
+          "runtimes/iossimulator-x64/native/libflecs.dylib": {
+            "assetType": "native",
+            "rid": "iossimulator-x64"
+          },
+          "runtimes/linux-arm64/native/libflecs.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-x64/native/libflecs.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-arm64/native/libflecs.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-x64/native/libflecs.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-arm64/native/flecs.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-x64/native/flecs.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          }
+        }
+      },
+      "Flecs.NET.Release/4.0.3": {
+        "type": "package",
+        "dependencies": {
+          "Flecs.NET.Bindings.Release": "4.0.3"
+        },
+        "compile": {
+          "lib/net8.0/Flecs.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Flecs.NET.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Base/1.1.10": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/FontStashSharp.Base.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.Base.dll": {}
+        }
+      },
+      "FontStashSharp.PlatformAgnostic/1.4.0": {
+        "type": "package",
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.1.10",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.1.10",
+          "StbImageSharp": "2.30.15"
+        },
+        "compile": {
+          "lib/netstandard2.0/FontStashSharp.PlatformAgnostic.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.PlatformAgnostic.dll": {}
+        }
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.1.10": {
+        "type": "package",
+        "dependencies": {
+          "FontStashSharp.Base": "1.1.10",
+          "StbTrueTypeSharp": "1.26.12"
+        },
+        "compile": {
+          "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {}
+        }
+      },
+      "LiteDB/5.0.21": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/LiteDB.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/LiteDB.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "StbImageSharp/2.30.15": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/StbImageSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/StbImageSharp.dll": {}
+        }
+      },
+      "StbTrueTypeSharp/1.26.12": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/StbTrueTypeSharp.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/StbTrueTypeSharp.dll": {}
+        }
+      },
+      "FNA/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "compile": {
+          "bin/placeholder/FNA.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/FNA.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "aelsi2.Facepunch.Steamworks/2.3.4": {
+      "sha512": "0bjyBeLywxE/FMWRG2jpF64piKSNL7ygyYwRBG8bY/Xb0Vkv3ImqpEsbABDQ30bTZAKeUBNqJ78RhcxhZ4u5cw==",
+      "type": "package",
+      "path": "aelsi2.facepunch.steamworks/2.3.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "aelsi2.facepunch.steamworks.2.3.4.nupkg.sha512",
+        "aelsi2.facepunch.steamworks.nuspec",
+        "icon.jpg",
+        "readme.md",
+        "ref/netstandard2.1/Facepunch.Steamworks.dll",
+        "ref/netstandard2.1/Facepunch.Steamworks.xml",
+        "runtimes/linux-x64/native/libsteam_api.so",
+        "runtimes/linux-x86/native/libsteam_api.so",
+        "runtimes/osx-x64/native/libsteam_api.dylib",
+        "runtimes/unix/lib/netstandard2.1/Facepunch.Steamworks.dll",
+        "runtimes/win-x64/native/steam_api.dll",
+        "runtimes/win-x86/native/steam_api.dll",
+        "runtimes/win/lib/netstandard2.1/Facepunch.Steamworks.dll"
+      ]
+    },
+    "Aether.Physics2D/2.2.0": {
+      "sha512": "/6WSIiXeHYG6JpZHshIBg4nTi2rMMrdzkSUQPdWqjT2xyYOsZSdrfUuF3xWAHHUgq8Rlv07ZLUFV8ml6nIeMDw==",
+      "type": "package",
+      "path": "aether.physics2d/2.2.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "aether.physics2d.2.2.0.nupkg.sha512",
+        "aether.physics2d.nuspec",
+        "icon.png",
+        "lib/net40/Aether.Physics2D.dll",
+        "lib/net40/Aether.Physics2D.xml",
+        "lib/net8.0/Aether.Physics2D.dll",
+        "lib/net8.0/Aether.Physics2D.xml",
+        "lib/netstandard2.0/Aether.Physics2D.dll",
+        "lib/netstandard2.0/Aether.Physics2D.xml"
+      ]
+    },
+    "Cyotek.Drawing.BitmapFont/2.0.4": {
+      "sha512": "iA6WehGVdMUuNbfsQQDq/Bt+mMd/OqHjiMUtKFLIQd/0pyYh4ehT7FEjTxN9/4OXNKQZsp9bAJgltP2nnswUJg==",
+      "type": "package",
+      "path": "cyotek.drawing.bitmapfont/2.0.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "cyotek.drawing.bitmapfont.2.0.4.nupkg.sha512",
+        "cyotek.drawing.bitmapfont.nuspec",
+        "icon.png",
+        "lib/net35/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net35/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net40/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net40/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net452/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net452/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net462/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net462/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net472/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net472/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net48/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net48/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net5.0/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net5.0/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp2.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp2.1/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp2.2/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp2.2/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp3.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp3.1/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard1.3/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard1.3/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard2.0/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard2.0/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard2.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard2.1/Cyotek.Drawing.BitmapFont.xml"
+      ]
+    },
+    "Flecs.NET.Bindings.Release/4.0.3": {
+      "sha512": "ysyDbx8Tp+FNuWEmwd7Q/UbrCv8Dmm8Xpr9m/8cHPloo1rDmhQyBJ9kmk0EjH2OeSbTIpTTxmfW9FPIHJTD4AA==",
+      "type": "package",
+      "path": "flecs.net.bindings.release/4.0.3",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "flecs.net.bindings.release.4.0.3.nupkg.sha512",
+        "flecs.net.bindings.release.nuspec",
+        "icon.png",
+        "lib/net5.0/Flecs.NET.Bindings.dll",
+        "lib/net6.0/Flecs.NET.Bindings.dll",
+        "lib/net7.0/Flecs.NET.Bindings.dll",
+        "lib/net8.0/Flecs.NET.Bindings.dll",
+        "lib/netstandard2.1/Flecs.NET.Bindings.dll"
+      ]
+    },
+    "Flecs.NET.Native.Release/4.0.3": {
+      "sha512": "FwsgKLaiV/TbpqGUwuNJ8cJprGknj/37+OZPb14G3A5sN8N5gvN8h9szL/ElKj8H8e1RUzRC0XgIXDCv5OgsVA==",
+      "type": "package",
+      "path": "flecs.net.native.release/4.0.3",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "buildTransitive/Flecs.NET.Native.Release.props",
+        "buildTransitive/Flecs.NET.Native.Release.targets",
+        "flecs.net.native.release.4.0.3.nupkg.sha512",
+        "flecs.net.native.release.nuspec",
+        "icon.png",
+        "runtimes/ios-arm64/native/libflecs.dylib",
+        "runtimes/iossimulator-arm64/native/libflecs.dylib",
+        "runtimes/iossimulator-x64/native/libflecs.dylib",
+        "runtimes/linux-arm64/native/libflecs.so",
+        "runtimes/linux-x64/native/libflecs.so",
+        "runtimes/osx-arm64/native/libflecs.dylib",
+        "runtimes/osx-x64/native/libflecs.dylib",
+        "runtimes/win-arm64/native/flecs.dll",
+        "runtimes/win-x64/native/flecs.dll",
+        "static/browser-wasm/native/libflecs.a",
+        "static/ios-arm64/native/libflecs.a",
+        "static/iossimulator-arm64/native/libflecs.a",
+        "static/iossimulator-x64/native/libflecs.a",
+        "static/linux-arm64/native/libflecs.a",
+        "static/linux-x64/native/libflecs.a",
+        "static/osx-arm64/native/libflecs.a",
+        "static/osx-x64/native/libflecs.a",
+        "static/win-arm64/native/flecs.lib",
+        "static/win-x64/native/flecs.lib"
+      ]
+    },
+    "Flecs.NET.Release/4.0.3": {
+      "sha512": "QvXnyw6PHVT7CBYMxfc0hLB5D1wl8vSwTLqrsj3ZENpNapYczG7VglxbtcBXC+V3WdCrhvyXARPQsSpvSj02gw==",
+      "type": "package",
+      "path": "flecs.net.release/4.0.3",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "flecs.net.release.4.0.3.nupkg.sha512",
+        "flecs.net.release.nuspec",
+        "icon.png",
+        "lib/net8.0/Flecs.NET.dll",
+        "lib/net8.0/Flecs.NET.xml"
+      ]
+    },
+    "FontStashSharp.Base/1.1.10": {
+      "sha512": "EkguKbW6LUHxH3oFLnoetsDNY7gMFYkAB4peZMtyELwjmmuVKo0+dBvIyTM+pyuvqr7kFVtppghb4OAjhULB2w==",
+      "type": "package",
+      "path": "fontstashsharp.base/1.1.10",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.base.1.1.10.nupkg.sha512",
+        "fontstashsharp.base.nuspec",
+        "lib/net471/FontStashSharp.Base.dll",
+        "lib/netstandard2.0/FontStashSharp.Base.dll"
+      ]
+    },
+    "FontStashSharp.PlatformAgnostic/1.4.0": {
+      "sha512": "IynGJvzn070mbhZC4FjFI2yeT3XpHiGIfQ5d3uC6rbrXyq48VFU5Q94tRcNp2bEhGUGv0R7dlRuEhA4646OFsg==",
+      "type": "package",
+      "path": "fontstashsharp.platformagnostic/1.4.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.platformagnostic.1.4.0.nupkg.sha512",
+        "fontstashsharp.platformagnostic.nuspec",
+        "lib/netstandard2.0/FontStashSharp.PlatformAgnostic.dll"
+      ]
+    },
+    "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.1.10": {
+      "sha512": "8zXzKbUfqkTq7VllZ+T79EsJ9/NPqyoSB/mnitKO6biW1DUIov/tAvN/gMVIvGsi5sjskTrQEwBau07TErJ5iw==",
+      "type": "package",
+      "path": "fontstashsharp.rasterizers.stbtruetypesharp/1.1.10",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.rasterizers.stbtruetypesharp.1.1.10.nupkg.sha512",
+        "fontstashsharp.rasterizers.stbtruetypesharp.nuspec",
+        "lib/net471/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll",
+        "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll"
+      ]
+    },
+    "LiteDB/5.0.21": {
+      "sha512": "ykJ7ffFl7P9YQKR/PLci6zupiLrsSCNkOTiw6OtzntH7d2kCYp5L1+3a/pksKgTEHcJBoPXFtg7VZSGVBseN9w==",
+      "type": "package",
+      "path": "litedb/5.0.21",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "AppVeyorSettings.json",
+        "LICENSE",
+        "icon_64x64.png",
+        "lib/net45/LiteDB.dll",
+        "lib/net45/LiteDB.xml",
+        "lib/netstandard1.3/LiteDB.dll",
+        "lib/netstandard1.3/LiteDB.xml",
+        "lib/netstandard2.0/LiteDB.dll",
+        "lib/netstandard2.0/LiteDB.xml",
+        "litedb.5.0.21.nupkg.sha512",
+        "litedb.nuspec"
+      ]
+    },
+    "StbImageSharp/2.30.15": {
+      "sha512": "7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ==",
+      "type": "package",
+      "path": "stbimagesharp/2.30.15",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net471/StbImageSharp.dll",
+        "lib/netstandard2.0/StbImageSharp.dll",
+        "stbimagesharp.2.30.15.nupkg.sha512",
+        "stbimagesharp.nuspec"
+      ]
+    },
+    "StbTrueTypeSharp/1.26.12": {
+      "sha512": "hCc6/OsfcPa5VsLECcEU2m78WOshBrKwK42nAodSm9Z5wH68f7n66SoiRLCdGCkDaqbWz2TlX4zYHIjogj1HJA==",
+      "type": "package",
+      "path": "stbtruetypesharp/1.26.12",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net471/StbTrueTypeSharp.dll",
+        "lib/netstandard2.0/StbTrueTypeSharp.dll",
+        "stbtruetypesharp.1.26.12.nupkg.sha512",
+        "stbtruetypesharp.nuspec"
+      ]
+    },
+    "FNA/1.0.0": {
+      "type": "project",
+      "path": "../FNA.Core.csproj",
+      "msbuildProject": "../FNA.Core.csproj"
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net10.0": [
+      "Aether.Physics2D >= 2.2.0",
+      "FNA >= 1.0.0",
+      "Flecs.NET.Release >= 4.0.3",
+      "FontStashSharp.PlatformAgnostic >= 1.4.0",
+      "LiteDB >= 5.0.21",
+      "aelsi2.Facepunch.Steamworks >= 2.3.4"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\Petri\\.nuget\\packages\\": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\MyGame\\MyGame.csproj",
+      "projectName": "MyGame",
+      "projectPath": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\MyGame\\MyGame.csproj",
+      "packagesPath": "C:\\Users\\Petri\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\MyGame\\obj\\",
+      "projectStyle": "PackageReference",
+      "configFilePaths": [
+        "C:\\Users\\Petri\\AppData\\Roaming\\NuGet\\NuGet.Config"
+      ],
+      "originalTargetFrameworks": [
+        "net10.0"
+      ],
+      "sources": {
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net10.0": {
+          "framework": "net10.0",
+          "targetAlias": "net10.0",
+          "projectReferences": {
+            "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\FNA.Core.csproj": {
+              "projectPath": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\FNA.Core.csproj"
+            }
+          }
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "all"
+      },
+      "SdkAnalysisLevel": "10.0.300"
+    },
+    "frameworks": {
+      "net10.0": {
+        "framework": "net10.0",
+        "targetAlias": "net10.0",
+        "dependencies": {
+          "Aether.Physics2D": {
+            "target": "Package",
+            "version": "[2.2.0, )"
+          },
+          "Flecs.NET.Release": {
+            "target": "Package",
+            "version": "[4.0.3, )"
+          },
+          "FontStashSharp.PlatformAgnostic": {
+            "target": "Package",
+            "version": "[1.4.0, )"
+          },
+          "LiteDB": {
+            "target": "Package",
+            "version": "[5.0.21, )"
+          },
+          "aelsi2.Facepunch.Steamworks": {
+            "target": "Package",
+            "version": "[2.3.4, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
+        "packagesToPrune": {
+          "Microsoft.CSharp": "(,4.7.32767]",
+          "Microsoft.VisualBasic": "(,10.4.32767]",
+          "Microsoft.Win32.Primitives": "(,4.3.32767]",
+          "Microsoft.Win32.Registry": "(,5.0.32767]",
+          "runtime.any.System.Collections": "(,4.3.32767]",
+          "runtime.any.System.Diagnostics.Tools": "(,4.3.32767]",
+          "runtime.any.System.Diagnostics.Tracing": "(,4.3.32767]",
+          "runtime.any.System.Globalization": "(,4.3.32767]",
+          "runtime.any.System.Globalization.Calendars": "(,4.3.32767]",
+          "runtime.any.System.IO": "(,4.3.32767]",
+          "runtime.any.System.Reflection": "(,4.3.32767]",
+          "runtime.any.System.Reflection.Extensions": "(,4.3.32767]",
+          "runtime.any.System.Reflection.Primitives": "(,4.3.32767]",
+          "runtime.any.System.Resources.ResourceManager": "(,4.3.32767]",
+          "runtime.any.System.Runtime": "(,4.3.32767]",
+          "runtime.any.System.Runtime.Handles": "(,4.3.32767]",
+          "runtime.any.System.Runtime.InteropServices": "(,4.3.32767]",
+          "runtime.any.System.Text.Encoding": "(,4.3.32767]",
+          "runtime.any.System.Text.Encoding.Extensions": "(,4.3.32767]",
+          "runtime.any.System.Threading.Tasks": "(,4.3.32767]",
+          "runtime.any.System.Threading.Timer": "(,4.3.32767]",
+          "runtime.aot.System.Collections": "(,4.3.32767]",
+          "runtime.aot.System.Diagnostics.Tools": "(,4.3.32767]",
+          "runtime.aot.System.Diagnostics.Tracing": "(,4.3.32767]",
+          "runtime.aot.System.Globalization": "(,4.3.32767]",
+          "runtime.aot.System.Globalization.Calendars": "(,4.3.32767]",
+          "runtime.aot.System.IO": "(,4.3.32767]",
+          "runtime.aot.System.Reflection": "(,4.3.32767]",
+          "runtime.aot.System.Reflection.Extensions": "(,4.3.32767]",
+          "runtime.aot.System.Reflection.Primitives": "(,4.3.32767]",
+          "runtime.aot.System.Resources.ResourceManager": "(,4.3.32767]",
+          "runtime.aot.System.Runtime": "(,4.3.32767]",
+          "runtime.aot.System.Runtime.Handles": "(,4.3.32767]",
+          "runtime.aot.System.Runtime.InteropServices": "(,4.3.32767]",
+          "runtime.aot.System.Text.Encoding": "(,4.3.32767]",
+          "runtime.aot.System.Text.Encoding.Extensions": "(,4.3.32767]",
+          "runtime.aot.System.Threading.Tasks": "(,4.3.32767]",
+          "runtime.aot.System.Threading.Timer": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.debian.9-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.debian.9-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.debian.9-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.debian.9-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.fedora.23-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.fedora.24-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.fedora.27-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.fedora.27-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.fedora.27-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.fedora.27-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.fedora.28-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.fedora.28-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.fedora.28-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.fedora.28-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.opensuse.13.2-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.opensuse.42.1-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.opensuse.42.3-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.opensuse.42.3-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.opensuse.42.3-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.opensuse.42.3-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.Apple": "(,4.3.32767]",
+          "runtime.osx.10.10-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.rhel.7-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.ubuntu.14.04-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.ubuntu.16.04-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography": "(,4.3.32767]",
+          "runtime.ubuntu.16.10-x64.runtime.native.System.Security.Cryptography.OpenSsl": "(,4.3.32767]",
+          "runtime.ubuntu.18.04-x64.runtime.native.System": "(,4.3.32767]",
+          "runtime.ubuntu.18.04-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.ubuntu.18.04-x64.runtime.native.System.Net.Http": "(,4.3.32767]",
+          "runtime.ubuntu.18.04-x64.runtime.native.System.Net.Security": "(,4.3.32767]",
+          "runtime.unix.Microsoft.Win32.Primitives": "(,4.3.32767]",
+          "runtime.unix.System.Console": "(,4.3.32767]",
+          "runtime.unix.System.Diagnostics.Debug": "(,4.3.32767]",
+          "runtime.unix.System.IO.FileSystem": "(,4.3.32767]",
+          "runtime.unix.System.Net.Primitives": "(,4.3.32767]",
+          "runtime.unix.System.Net.Sockets": "(,4.3.32767]",
+          "runtime.unix.System.Private.Uri": "(,4.3.32767]",
+          "runtime.unix.System.Runtime.Extensions": "(,4.3.32767]",
+          "runtime.win.Microsoft.Win32.Primitives": "(,4.3.32767]",
+          "runtime.win.System.Console": "(,4.3.32767]",
+          "runtime.win.System.Diagnostics.Debug": "(,4.3.32767]",
+          "runtime.win.System.IO.FileSystem": "(,4.3.32767]",
+          "runtime.win.System.Net.Primitives": "(,4.3.32767]",
+          "runtime.win.System.Net.Sockets": "(,4.3.32767]",
+          "runtime.win.System.Runtime.Extensions": "(,4.3.32767]",
+          "runtime.win10-arm-aot.runtime.native.System.IO.Compression": "(,4.0.32767]",
+          "runtime.win10-arm64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.win10-x64-aot.runtime.native.System.IO.Compression": "(,4.0.32767]",
+          "runtime.win10-x86-aot.runtime.native.System.IO.Compression": "(,4.0.32767]",
+          "runtime.win7-x64.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.win7-x86.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "runtime.win7.System.Private.Uri": "(,4.3.32767]",
+          "runtime.win8-arm.runtime.native.System.IO.Compression": "(,4.3.32767]",
+          "System.AppContext": "(,4.3.32767]",
+          "System.Buffers": "(,5.0.32767]",
+          "System.Collections": "(,4.3.32767]",
+          "System.Collections.Concurrent": "(,4.3.32767]",
+          "System.Collections.Immutable": "(,10.0.32767]",
+          "System.Collections.NonGeneric": "(,4.3.32767]",
+          "System.Collections.Specialized": "(,4.3.32767]",
+          "System.ComponentModel": "(,4.3.32767]",
+          "System.ComponentModel.Annotations": "(,4.3.32767]",
+          "System.ComponentModel.EventBasedAsync": "(,4.3.32767]",
+          "System.ComponentModel.Primitives": "(,4.3.32767]",
+          "System.ComponentModel.TypeConverter": "(,4.3.32767]",
+          "System.Console": "(,4.3.32767]",
+          "System.Data.Common": "(,4.3.32767]",
+          "System.Data.DataSetExtensions": "(,4.4.32767]",
+          "System.Diagnostics.Contracts": "(,4.3.32767]",
+          "System.Diagnostics.Debug": "(,4.3.32767]",
+          "System.Diagnostics.DiagnosticSource": "(,10.0.32767]",
+          "System.Diagnostics.FileVersionInfo": "(,4.3.32767]",
+          "System.Diagnostics.Process": "(,4.3.32767]",
+          "System.Diagnostics.StackTrace": "(,4.3.32767]",
+          "System.Diagnostics.TextWriterTraceListener": "(,4.3.32767]",
+          "System.Diagnostics.Tools": "(,4.3.32767]",
+          "System.Diagnostics.TraceSource": "(,4.3.32767]",
+          "System.Diagnostics.Tracing": "(,4.3.32767]",
+          "System.Drawing.Primitives": "(,4.3.32767]",
+          "System.Dynamic.Runtime": "(,4.3.32767]",
+          "System.Formats.Asn1": "(,10.0.32767]",
+          "System.Formats.Tar": "(,10.0.32767]",
+          "System.Globalization": "(,4.3.32767]",
+          "System.Globalization.Calendars": "(,4.3.32767]",
+          "System.Globalization.Extensions": "(,4.3.32767]",
+          "System.IO": "(,4.3.32767]",
+          "System.IO.Compression": "(,4.3.32767]",
+          "System.IO.Compression.ZipFile": "(,4.3.32767]",
+          "System.IO.FileSystem": "(,4.3.32767]",
+          "System.IO.FileSystem.AccessControl": "(,4.4.32767]",
+          "System.IO.FileSystem.DriveInfo": "(,4.3.32767]",
+          "System.IO.FileSystem.Primitives": "(,4.3.32767]",
+          "System.IO.FileSystem.Watcher": "(,4.3.32767]",
+          "System.IO.IsolatedStorage": "(,4.3.32767]",
+          "System.IO.MemoryMappedFiles": "(,4.3.32767]",
+          "System.IO.Pipelines": "(,10.0.32767]",
+          "System.IO.Pipes": "(,4.3.32767]",
+          "System.IO.Pipes.AccessControl": "(,5.0.32767]",
+          "System.IO.UnmanagedMemoryStream": "(,4.3.32767]",
+          "System.Linq": "(,4.3.32767]",
+          "System.Linq.AsyncEnumerable": "(,10.0.32767]",
+          "System.Linq.Expressions": "(,4.3.32767]",
+          "System.Linq.Parallel": "(,4.3.32767]",
+          "System.Linq.Queryable": "(,4.3.32767]",
+          "System.Memory": "(,5.0.32767]",
+          "System.Net.Http": "(,4.3.32767]",
+          "System.Net.Http.Json": "(,10.0.32767]",
+          "System.Net.NameResolution": "(,4.3.32767]",
+          "System.Net.NetworkInformation": "(,4.3.32767]",
+          "System.Net.Ping": "(,4.3.32767]",
+          "System.Net.Primitives": "(,4.3.32767]",
+          "System.Net.Requests": "(,4.3.32767]",
+          "System.Net.Security": "(,4.3.32767]",
+          "System.Net.ServerSentEvents": "(,10.0.32767]",
+          "System.Net.Sockets": "(,4.3.32767]",
+          "System.Net.WebHeaderCollection": "(,4.3.32767]",
+          "System.Net.WebSockets": "(,4.3.32767]",
+          "System.Net.WebSockets.Client": "(,4.3.32767]",
+          "System.Numerics.Vectors": "(,5.0.32767]",
+          "System.ObjectModel": "(,4.3.32767]",
+          "System.Private.DataContractSerialization": "(,4.3.32767]",
+          "System.Private.Uri": "(,4.3.32767]",
+          "System.Reflection": "(,4.3.32767]",
+          "System.Reflection.DispatchProxy": "(,6.0.32767]",
+          "System.Reflection.Emit": "(,4.7.32767]",
+          "System.Reflection.Emit.ILGeneration": "(,4.7.32767]",
+          "System.Reflection.Emit.Lightweight": "(,4.7.32767]",
+          "System.Reflection.Extensions": "(,4.3.32767]",
+          "System.Reflection.Metadata": "(,10.0.32767]",
+          "System.Reflection.Primitives": "(,4.3.32767]",
+          "System.Reflection.TypeExtensions": "(,4.3.32767]",
+          "System.Resources.Reader": "(,4.3.32767]",
+          "System.Resources.ResourceManager": "(,4.3.32767]",
+          "System.Resources.Writer": "(,4.3.32767]",
+          "System.Runtime": "(,4.3.32767]",
+          "System.Runtime.CompilerServices.Unsafe": "(,7.0.32767]",
+          "System.Runtime.CompilerServices.VisualC": "(,4.3.32767]",
+          "System.Runtime.Extensions": "(,4.3.32767]",
+          "System.Runtime.Handles": "(,4.3.32767]",
+          "System.Runtime.InteropServices": "(,4.3.32767]",
+          "System.Runtime.InteropServices.RuntimeInformation": "(,4.3.32767]",
+          "System.Runtime.Loader": "(,4.3.32767]",
+          "System.Runtime.Numerics": "(,4.3.32767]",
+          "System.Runtime.Serialization.Formatters": "(,4.3.32767]",
+          "System.Runtime.Serialization.Json": "(,4.3.32767]",
+          "System.Runtime.Serialization.Primitives": "(,4.3.32767]",
+          "System.Runtime.Serialization.Xml": "(,4.3.32767]",
+          "System.Security.AccessControl": "(,6.0.32767]",
+          "System.Security.Claims": "(,4.3.32767]",
+          "System.Security.Cryptography.Algorithms": "(,4.3.32767]",
+          "System.Security.Cryptography.Cng": "(,5.0.32767]",
+          "System.Security.Cryptography.Csp": "(,4.3.32767]",
+          "System.Security.Cryptography.Encoding": "(,4.3.32767]",
+          "System.Security.Cryptography.OpenSsl": "(,5.0.32767]",
+          "System.Security.Cryptography.Primitives": "(,4.3.32767]",
+          "System.Security.Cryptography.X509Certificates": "(,4.3.32767]",
+          "System.Security.Principal": "(,4.3.32767]",
+          "System.Security.Principal.Windows": "(,5.0.32767]",
+          "System.Security.SecureString": "(,4.3.32767]",
+          "System.Text.Encoding": "(,4.3.32767]",
+          "System.Text.Encoding.CodePages": "(,10.0.32767]",
+          "System.Text.Encoding.Extensions": "(,4.3.32767]",
+          "System.Text.Encodings.Web": "(,10.0.32767]",
+          "System.Text.Json": "(,10.0.32767]",
+          "System.Text.RegularExpressions": "(,4.3.32767]",
+          "System.Threading": "(,4.3.32767]",
+          "System.Threading.AccessControl": "(,10.0.32767]",
+          "System.Threading.Channels": "(,10.0.32767]",
+          "System.Threading.Overlapped": "(,4.3.32767]",
+          "System.Threading.Tasks": "(,4.3.32767]",
+          "System.Threading.Tasks.Dataflow": "(,10.0.32767]",
+          "System.Threading.Tasks.Extensions": "(,5.0.32767]",
+          "System.Threading.Tasks.Parallel": "(,4.3.32767]",
+          "System.Threading.Thread": "(,4.3.32767]",
+          "System.Threading.ThreadPool": "(,4.3.32767]",
+          "System.Threading.Timer": "(,4.3.32767]",
+          "System.ValueTuple": "(,4.5.32767]",
+          "System.Xml.ReaderWriter": "(,4.3.32767]",
+          "System.Xml.XDocument": "(,4.3.32767]",
+          "System.Xml.XmlDocument": "(,4.3.32767]",
+          "System.Xml.XmlSerializer": "(,4.3.32767]",
+          "System.Xml.XPath": "(,4.3.32767]",
+          "System.Xml.XPath.XDocument": "(,5.0.32767]"
+        }
+      }
+    }
+  }
+}

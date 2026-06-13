@@ -1,0 +1,327 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "MyGame/1.0.0": {
+        "dependencies": {
+          "Aether.Physics2D": "2.2.0",
+          "FNA": "1.0.0",
+          "Flecs.NET.Release": "4.0.3",
+          "FontStashSharp.PlatformAgnostic": "1.4.0",
+          "LiteDB": "5.0.21",
+          "aelsi2.Facepunch.Steamworks": "2.3.4",
+          "FNA.Reference": "26.6.0.0"
+        },
+        "runtime": {
+          "MyGame.dll": {}
+        }
+      },
+      "aelsi2.Facepunch.Steamworks/2.3.4": {
+        "runtimeTargets": {
+          "runtimes/unix/lib/netstandard2.1/Facepunch.Steamworks.dll": {
+            "rid": "unix",
+            "assetType": "runtime",
+            "assemblyVersion": "2.3.4.0",
+            "fileVersion": "2.3.4.0"
+          },
+          "runtimes/win/lib/netstandard2.1/Facepunch.Steamworks.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "2.3.4.0",
+            "fileVersion": "2.3.4.0"
+          },
+          "runtimes/linux-x64/native/libsteam_api.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x86/native/libsteam_api.so": {
+            "rid": "linux-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-x64/native/libsteam_api.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/steam_api.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "8.2.21.95"
+          },
+          "runtimes/win-x86/native/steam_api.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "8.2.21.95"
+          }
+        }
+      },
+      "Aether.Physics2D/2.2.0": {
+        "runtime": {
+          "lib/net8.0/Aether.Physics2D.dll": {
+            "assemblyVersion": "2.2.0.0",
+            "fileVersion": "2.2.0.0"
+          }
+        }
+      },
+      "Cyotek.Drawing.BitmapFont/2.0.4": {
+        "runtime": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "2.0.4.0"
+          }
+        }
+      },
+      "Flecs.NET.Bindings.Release/4.0.3": {
+        "dependencies": {
+          "Flecs.NET.Native.Release": "4.0.3"
+        },
+        "runtime": {
+          "lib/net8.0/Flecs.NET.Bindings.dll": {
+            "assemblyVersion": "4.0.3.0",
+            "fileVersion": "4.0.3.0"
+          }
+        }
+      },
+      "Flecs.NET.Native.Release/4.0.3": {
+        "runtimeTargets": {
+          "runtimes/ios-arm64/native/libflecs.dylib": {
+            "rid": "ios-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-arm64/native/libflecs.dylib": {
+            "rid": "iossimulator-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/iossimulator-x64/native/libflecs.dylib": {
+            "rid": "iossimulator-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-arm64/native/libflecs.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libflecs.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-arm64/native/libflecs.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-x64/native/libflecs.dylib": {
+            "rid": "osx-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-arm64/native/flecs.dll": {
+            "rid": "win-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/flecs.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "Flecs.NET.Release/4.0.3": {
+        "dependencies": {
+          "Flecs.NET.Bindings.Release": "4.0.3"
+        },
+        "runtime": {
+          "lib/net8.0/Flecs.NET.dll": {
+            "assemblyVersion": "4.0.3.0",
+            "fileVersion": "4.0.3.0"
+          }
+        }
+      },
+      "FontStashSharp.Base/1.1.10": {
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.Base.dll": {
+            "assemblyVersion": "1.1.10.0",
+            "fileVersion": "1.1.10.0"
+          }
+        }
+      },
+      "FontStashSharp.PlatformAgnostic/1.4.0": {
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.1.10",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.1.10",
+          "StbImageSharp": "2.30.15"
+        },
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.PlatformAgnostic.dll": {
+            "assemblyVersion": "1.4.0.0",
+            "fileVersion": "1.4.0.0"
+          }
+        }
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.1.10": {
+        "dependencies": {
+          "FontStashSharp.Base": "1.1.10",
+          "StbTrueTypeSharp": "1.26.12"
+        },
+        "runtime": {
+          "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "assemblyVersion": "1.1.10.0",
+            "fileVersion": "1.1.10.0"
+          }
+        }
+      },
+      "LiteDB/5.0.21": {
+        "runtime": {
+          "lib/netstandard2.0/LiteDB.dll": {
+            "assemblyVersion": "5.0.21.0",
+            "fileVersion": "5.0.21.0"
+          }
+        }
+      },
+      "StbImageSharp/2.30.15": {
+        "runtime": {
+          "lib/netstandard2.0/StbImageSharp.dll": {
+            "assemblyVersion": "2.30.15.0",
+            "fileVersion": "2.30.15.0"
+          }
+        }
+      },
+      "StbTrueTypeSharp/1.26.12": {
+        "runtime": {
+          "lib/netstandard2.0/StbTrueTypeSharp.dll": {
+            "assemblyVersion": "1.26.12.0",
+            "fileVersion": "1.26.12.0"
+          }
+        }
+      },
+      "FNA/1.0.0": {
+        "runtime": {
+          "FNA.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "FNA.Reference/26.6.0.0": {
+        "runtime": {
+          "FNA.dll": {
+            "assemblyVersion": "26.6.0.0",
+            "fileVersion": "26.6.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MyGame/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "aelsi2.Facepunch.Steamworks/2.3.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0bjyBeLywxE/FMWRG2jpF64piKSNL7ygyYwRBG8bY/Xb0Vkv3ImqpEsbABDQ30bTZAKeUBNqJ78RhcxhZ4u5cw==",
+      "path": "aelsi2.facepunch.steamworks/2.3.4",
+      "hashPath": "aelsi2.facepunch.steamworks.2.3.4.nupkg.sha512"
+    },
+    "Aether.Physics2D/2.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/6WSIiXeHYG6JpZHshIBg4nTi2rMMrdzkSUQPdWqjT2xyYOsZSdrfUuF3xWAHHUgq8Rlv07ZLUFV8ml6nIeMDw==",
+      "path": "aether.physics2d/2.2.0",
+      "hashPath": "aether.physics2d.2.2.0.nupkg.sha512"
+    },
+    "Cyotek.Drawing.BitmapFont/2.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iA6WehGVdMUuNbfsQQDq/Bt+mMd/OqHjiMUtKFLIQd/0pyYh4ehT7FEjTxN9/4OXNKQZsp9bAJgltP2nnswUJg==",
+      "path": "cyotek.drawing.bitmapfont/2.0.4",
+      "hashPath": "cyotek.drawing.bitmapfont.2.0.4.nupkg.sha512"
+    },
+    "Flecs.NET.Bindings.Release/4.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ysyDbx8Tp+FNuWEmwd7Q/UbrCv8Dmm8Xpr9m/8cHPloo1rDmhQyBJ9kmk0EjH2OeSbTIpTTxmfW9FPIHJTD4AA==",
+      "path": "flecs.net.bindings.release/4.0.3",
+      "hashPath": "flecs.net.bindings.release.4.0.3.nupkg.sha512"
+    },
+    "Flecs.NET.Native.Release/4.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-FwsgKLaiV/TbpqGUwuNJ8cJprGknj/37+OZPb14G3A5sN8N5gvN8h9szL/ElKj8H8e1RUzRC0XgIXDCv5OgsVA==",
+      "path": "flecs.net.native.release/4.0.3",
+      "hashPath": "flecs.net.native.release.4.0.3.nupkg.sha512"
+    },
+    "Flecs.NET.Release/4.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-QvXnyw6PHVT7CBYMxfc0hLB5D1wl8vSwTLqrsj3ZENpNapYczG7VglxbtcBXC+V3WdCrhvyXARPQsSpvSj02gw==",
+      "path": "flecs.net.release/4.0.3",
+      "hashPath": "flecs.net.release.4.0.3.nupkg.sha512"
+    },
+    "FontStashSharp.Base/1.1.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-EkguKbW6LUHxH3oFLnoetsDNY7gMFYkAB4peZMtyELwjmmuVKo0+dBvIyTM+pyuvqr7kFVtppghb4OAjhULB2w==",
+      "path": "fontstashsharp.base/1.1.10",
+      "hashPath": "fontstashsharp.base.1.1.10.nupkg.sha512"
+    },
+    "FontStashSharp.PlatformAgnostic/1.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-IynGJvzn070mbhZC4FjFI2yeT3XpHiGIfQ5d3uC6rbrXyq48VFU5Q94tRcNp2bEhGUGv0R7dlRuEhA4646OFsg==",
+      "path": "fontstashsharp.platformagnostic/1.4.0",
+      "hashPath": "fontstashsharp.platformagnostic.1.4.0.nupkg.sha512"
+    },
+    "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.1.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8zXzKbUfqkTq7VllZ+T79EsJ9/NPqyoSB/mnitKO6biW1DUIov/tAvN/gMVIvGsi5sjskTrQEwBau07TErJ5iw==",
+      "path": "fontstashsharp.rasterizers.stbtruetypesharp/1.1.10",
+      "hashPath": "fontstashsharp.rasterizers.stbtruetypesharp.1.1.10.nupkg.sha512"
+    },
+    "LiteDB/5.0.21": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ykJ7ffFl7P9YQKR/PLci6zupiLrsSCNkOTiw6OtzntH7d2kCYp5L1+3a/pksKgTEHcJBoPXFtg7VZSGVBseN9w==",
+      "path": "litedb/5.0.21",
+      "hashPath": "litedb.5.0.21.nupkg.sha512"
+    },
+    "StbImageSharp/2.30.15": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ==",
+      "path": "stbimagesharp/2.30.15",
+      "hashPath": "stbimagesharp.2.30.15.nupkg.sha512"
+    },
+    "StbTrueTypeSharp/1.26.12": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hCc6/OsfcPa5VsLECcEU2m78WOshBrKwK42nAodSm9Z5wH68f7n66SoiRLCdGCkDaqbWz2TlX4zYHIjogj1HJA==",
+      "path": "stbtruetypesharp/1.26.12",
+      "hashPath": "stbtruetypesharp.1.26.12.nupkg.sha512"
+    },
+    "FNA/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FNA.Reference/26.6.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
