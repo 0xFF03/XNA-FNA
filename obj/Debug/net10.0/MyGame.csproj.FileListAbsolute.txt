@@ -44,3 +44,4 @@ C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.pdb
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.genruntimeconfig.cache
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\ref\MyGame.dll
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\steam_appid.txt
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.sourcelink.json

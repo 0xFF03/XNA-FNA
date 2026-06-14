@@ -10,18 +10,19 @@ public static class SteamManager
 {
     public static bool IsSteamActive { get; private set; } = false;
     public static Lobby? CurrentLobby { get; private set; }
+    private static SteamId? originalHostId = null;
 
     public static void Initialize()
     {
         try
         {
-            SteamClient.Init(480);
+            SteamClient.Init(480, true);
             IsSteamActive = true;
 
-            // Wire up all essential multi-user callback pathways
             SteamMatchmaking.OnLobbyGameCreated += OnLobbyGameCreated;
             SteamFriends.OnGameLobbyJoinRequested += OnGameLobbyJoinRequested;
             SteamMatchmaking.OnLobbyMemberJoined += OnLobbyMemberJoined;
+            SteamNetworking.OnP2PSessionRequest += OnP2PSessionRequest;
 
             Console.WriteLine($"[Steam]: Always-Online connected successfully as {SteamClient.Name}");
         }
@@ -30,6 +31,31 @@ public static class SteamManager
             Console.WriteLine($"[Steam Offline Error]: Running in fallback mode. {ex.Message}");
             IsSteamActive = false;
         }
+    }
+
+    private static void OnP2PSessionRequest(SteamId steamId)
+    {
+        if (CurrentLobby.HasValue)
+        {
+            bool isAuthorized = false;
+            foreach (var member in CurrentLobby.Value.Members)
+            {
+                if (member.Id == steamId)
+                {
+                    isAuthorized = true;
+                    break;
+                }
+            }
+
+            if (isAuthorized)
+            {
+                Console.WriteLine($"[Steam]: Authorized P2P handshake accepted from {steamId}");
+                SteamNetworking.AcceptP2PSessionWithUser(steamId);
+                return;
+            }
+        }
+
+        Console.WriteLine($"[Steam Security]: BLOCKED unauthorized P2P request from {steamId}");
     }
 
     public static async void CreateLobby()
@@ -44,6 +70,7 @@ public static class SteamManager
                 CurrentLobby = lobbyTask.Value;
                 CurrentLobby.Value.SetFriendsOnly();
                 CurrentLobby.Value.SetJoinable(true);
+                originalHostId = SteamClient.SteamId;
                 Console.WriteLine($"[Steam]: Live Multiplayer Lobby Formed! ID: {CurrentLobby.Value.Id}");
             }
         }
@@ -57,52 +84,68 @@ public static class SteamManager
     {
         if (IsSteamActive && SteamClient.IsValid && CurrentLobby.HasValue)
         {
-            // Forces the Steam overlay to jump directly into the friend selection panel for this lobby
             SteamFriends.OpenGameInviteOverlay(CurrentLobby.Value.Id);
-            Console.WriteLine($"[Steam]: Summoning explicit Friend Invite overlay for Lobby: {CurrentLobby.Value.Id}");
-        }
-        else
-        {
-            Console.WriteLine("[Steam Warning]: Cannot summon invite overlay. Verify you are running an active Steam lobby session.");
         }
     }
 
-    // Fired on the joining client's side when they accept a Steam invite
+    public static void LeaveLobby()
+    {
+        if (CurrentLobby.HasValue)
+        {
+            foreach (var member in CurrentLobby.Value.Members)
+            {
+                if (member.Id != SteamClient.SteamId)
+                {
+                    SteamNetworking.CloseP2PSessionWithUser(member.Id);
+                }
+            }
+
+            CurrentLobby.Value.Leave();
+            CurrentLobby = null;
+            originalHostId = null;
+            Console.WriteLine("[Steam]: Safely severed all P2P sockets and left the lobby.");
+        }
+    }
+
     private static async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
     {
-        Console.WriteLine($"[Network]: Accepting lobby link request to join Host ID: {friendId}");
-
-        // FIX 1: Facepunch uses the .Join() invocation signature rather than .JoinAsync()
         RoomEnter result = await lobby.Join();
         if (result == RoomEnter.Success)
         {
             CurrentLobby = lobby;
+            originalHostId = friendId;
             Console.WriteLine("[Network]: Connected to the remote lobby successfully!");
-
-            // FIX 2: Target the explicit type-safe desktop assembly window via Game1.Instance
             StateManager.Instance.ChangeState(new CharacterSelectState(Game1.Instance, StateManager.Instance));
         }
-        else
-        {
-            Console.WriteLine($"[Network Error]: Failed to step into target lobby room: {result}");
-        }
     }
 
-    // Fired on everyone's machine when a player connects to the lobby session
-    private static void OnLobbyMemberJoined(Lobby lobby, Friend friend)
-    {
-        Console.WriteLine($"[Lobby Sync]: Player '{friend.Name}' has successfully stepped into the lobby room.");
-    }
-
-    private static void OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId serverId)
-    {
-    }
+    private static void OnLobbyMemberJoined(Lobby lobby, Friend friend) { }
+    private static void OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId serverId) { }
 
     public static void Update()
     {
         if (IsSteamActive && SteamClient.IsValid)
         {
             SteamClient.RunCallbacks();
+
+            if (CurrentLobby.HasValue && originalHostId.HasValue)
+            {
+                bool hostStillPresent = false;
+                foreach (var member in CurrentLobby.Value.Members)
+                {
+                    if (member.Id == originalHostId.Value)
+                    {
+                        hostStillPresent = true;
+                        break;
+                    }
+                }
+
+                if (!hostStillPresent)
+                {
+                    Console.WriteLine("[Network Sync]: Critical Authority Lost - The original host left the lobby.");
+                    LeaveLobby();
+                }
+            }
         }
     }
 
@@ -110,6 +153,13 @@ public static class SteamManager
     {
         if (IsSteamActive && SteamClient.IsValid)
         {
+            LeaveLobby();
+
+            SteamMatchmaking.OnLobbyGameCreated -= OnLobbyGameCreated;
+            SteamFriends.OnGameLobbyJoinRequested -= OnGameLobbyJoinRequested;
+            SteamMatchmaking.OnLobbyMemberJoined -= OnLobbyMemberJoined;
+            SteamNetworking.OnP2PSessionRequest -= OnP2PSessionRequest;
+
             SteamClient.Shutdown();
         }
     }

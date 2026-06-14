@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.States;
+using MyGame.Engine.Networking;
 using MyGame.Gameplay.Components;
-using MyGame.Gameplay.Systems;
-using MyGame.Gameplay.Networking;
 using MyGame.Gameplay.Prefabs;
+using MyGame.GameStates.UI;
 using Flecs.NET.Core;
 
 using XnaColor = Microsoft.Xna.Framework.Color;
@@ -14,61 +15,94 @@ namespace MyGame.GameStates;
 
 public class GameplayState : GameState
 {
-    private readonly World _ecsWorld;
-    private readonly RemoteSessionManager _sessionManager;
-    private Texture2D _dummyPlayerTexture = null!;
-    private readonly int _selectedClassId;
+    private readonly World ecsWorld;
+    private readonly int selectedClassId;
 
-    public GameplayState(Game1 game, StateManager stateManager) : base(game, stateManager)
+    private Texture2D dummyPlayerTexture = null!;
+    private PauseMenuOverlay pauseMenu = null!;
+
+    public GameplayState(Game1 game, StateManager stateManager, World sharedWorld, int chosenClassId)
+        : base(game, stateManager)
     {
-        _ecsWorld = World.Create();
-        _sessionManager = new RemoteSessionManager();
+        ecsWorld = sharedWorld;
+        selectedClassId = chosenClassId;
     }
 
     public override void LoadContent()
     {
-        // Register your fully modular logic pipelines
-        MovementSystems.Register(_ecsWorld);
-        NetworkReceiverSystem.Register(_ecsWorld, _sessionManager);
-        NetworkBroadcastSystem.Register(_ecsWorld);
-
-        _dummyPlayerTexture = new Texture2D(game.GraphicsDevice, 32, 32);
+        dummyPlayerTexture = new Texture2D(game.GraphicsDevice, 32, 32);
         XnaColor[] colorData = new XnaColor[32 * 32];
         Array.Fill(colorData, XnaColor.White);
-        _dummyPlayerTexture.SetData(colorData);
+        dummyPlayerTexture.SetData(colorData);
 
-        PlayerFactory.CreateLocal(_ecsWorld, _selectedClassId);
+        pauseMenu = new PauseMenuOverlay(game, stateManager);
 
-        Console.WriteLine("[Gameplay]: Flecs simulation initialized under Client-Side Authority.");
+        // Ensures the ID sequence is clean for a new match
+        NetworkIdGenerator.ResetSequence();
+
+        PlayerFactory.CreateLocal(ecsWorld, selectedClassId);
     }
 
     public override void UnloadContent()
     {
-        _dummyPlayerTexture.Dispose();
-        _sessionManager.ClearSessions();
-        _ecsWorld.Dispose();
-        Console.WriteLine("[Gameplay]: Native Flecs ECS World safely dismantled.");
+        dummyPlayerTexture.Dispose();
+        pauseMenu.Unload();
+
+        ((Game1)game).SessionManager.ClearSessions();
+
+        var garbageCollectionList = new List<Entity>();
+
+        using var cleanupQuery = ecsWorld.QueryBuilder().With<MatchEntityTag>().Build();
+        cleanupQuery.Each((Entity e) =>
+        {
+            garbageCollectionList.Add(e);
+        });
+
+        foreach (var entity in garbageCollectionList)
+        {
+            // Prevents Access Violations when destroying child entities that were automatically
+            // purged by Flecs when their parent was destroyed earlier in this exact loop.
+            if (entity.IsAlive())
+            {
+                entity.Destruct();
+            }
+        }
+
+        Console.WriteLine("[Gameplay]: Active match simulation cleared safely via Deferred Teardown.");
     }
 
     public override void Update(GameTime gameTime)
     {
-        // The magic of pure ECS: This single line now runs Physics, Ingests Packets, AND Broadcasts Packets at exact intervals!
-        _ecsWorld.Progress((float)gameTime.ElapsedGameTime.TotalSeconds);
+        if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue)
+        {
+            SteamManager.LeaveLobby();
+            stateManager.ChangeState(new MainMenuState(game, stateManager));
+            return;
+        }
+
+        pauseMenu.Update();
+
+        if (!pauseMenu.IsPaused)
+        {
+            float dt = (float)Math.Min(gameTime.ElapsedGameTime.TotalSeconds, 0.1);
+            ecsWorld.Progress(dt);
+        }
     }
 
     public override void Draw(SpriteBatch spriteBatch)
     {
         game.GraphicsDevice.Clear(XnaColor.FromNonPremultiplied(30, 30, 30, 255));
 
-        _ecsWorld.Query<Position, CharacterClass>().Each((Iter it, int row, ref Position pos, ref CharacterClass cClass) =>
+        ecsWorld.Query<Position, CharacterClass>().Each((Iter it, int row, ref Position pos, ref CharacterClass cClass) =>
         {
             Entity e = it.Entity(row);
             XnaColor renderColor = cClass.Id == 0 ? XnaColor.Orange : XnaColor.Cyan;
 
-            if (e.Has<RemotePlayerTag>())
-                renderColor = XnaColor.LightSkyBlue;
+            if (e.Has<RemotePlayerTag>()) renderColor = XnaColor.LightSkyBlue;
 
-            spriteBatch.Draw(_dummyPlayerTexture, new Rectangle((int)pos.X, (int)pos.Y, 32, 32), renderColor);
+            spriteBatch.Draw(dummyPlayerTexture, new Rectangle((int)pos.X, (int)pos.Y, 32, 32), renderColor);
         });
+
+        pauseMenu.Draw(spriteBatch);
     }
 }

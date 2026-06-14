@@ -1,75 +1,92 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using MyGame.Engine.States;
 using MyGame.GameStates;
 using MyGame.Engine.Networking;
+using MyGame.Gameplay.Systems;
+using MyGame.Gameplay.Networking;
+using Flecs.NET.Core;
 
 namespace MyGame;
 
 public class Game1 : Game
 {
-	private readonly GraphicsDeviceManager graphics;
-	private SpriteBatch? spriteBatch;
-	private readonly StateManager stateManager;
+    private readonly GraphicsDeviceManager graphics;
+    private SpriteBatch? spriteBatch;
+    private readonly StateManager stateManager;
 
-	// Singleton exposure for cross-assembly or network-driven state modifications
-	public static Game1 Instance { get; private set; } = null!;
+    public static Game1 Instance { get; private set; } = null!;
 
-	public Game1()
-	{
-		Instance = this;
+    public World EcsWorld { get; private set; }
+    public RemoteSessionManager SessionManager { get; private set; }
 
-		graphics = new GraphicsDeviceManager(this)
-		{
-			PreferredBackBufferWidth = 1280,
-			PreferredBackBufferHeight = 720
-		};
-		Content.RootDirectory = "Content";
-		IsMouseVisible = true;
+    public Game1()
+    {
+        Instance = this;
 
-		stateManager = new StateManager();
-	}
+        EcsWorld = World.Create();
+        SessionManager = new RemoteSessionManager();
 
-	protected override void Initialize()
-	{
-		// SteamManager.Initialize() is handled via Program.cs before Vulkan surface creation
-		base.Initialize();
-	}
+        graphics = new GraphicsDeviceManager(this)
+        {
+            PreferredBackBufferWidth = 1280,
+            PreferredBackBufferHeight = 720
+        };
 
-	protected override void LoadContent()
-	{
-		spriteBatch = new SpriteBatch(GraphicsDevice);
-		stateManager.ChangeState(new MainMenuState(this, stateManager));
-	}
+        IsFixedTimeStep = true;
+        TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
 
-	protected override void Update(GameTime gameTime)
-	{
-		if (Keyboard.GetState().IsKeyDown(Keys.Escape))
-			Exit();
+        Content.RootDirectory = "Content";
+        IsMouseVisible = true;
 
-		SteamManager.Update();
-		stateManager.Update(gameTime);
+        stateManager = new StateManager();
+    }
 
-		base.Update(gameTime);
-	}
+    protected override void Initialize()
+    {
+        base.Initialize();
+    }
 
-	protected override void Draw(GameTime gameTime)
-	{
-		spriteBatch?.Begin();
-		stateManager.Draw(spriteBatch!);
-		spriteBatch?.End();
+    protected override void LoadContent()
+    {
+        spriteBatch = new SpriteBatch(GraphicsDevice);
 
-		base.Draw(gameTime);
-	}
+        LocalPlayerSystems.Register(EcsWorld);
+        RemotePlayerSystems.Register(EcsWorld);
 
-	protected override void Dispose(bool disposing)
-	{
-		if (disposing)
-		{
-			spriteBatch?.Dispose();
-			SteamManager.Shutdown();
-		}
-		base.Dispose(disposing);
-	}
+        NetworkReceiverSystem.Register(EcsWorld, SessionManager);
+        NetworkBroadcastSystem.Register(EcsWorld);
+        NetworkCleanupSystem.Register(EcsWorld, SessionManager);
+
+        stateManager.ChangeState(new MainMenuState(this, stateManager));
+    }
+
+    protected override void Update(GameTime gameTime)
+    {
+        SteamManager.Update();
+        stateManager.Update(gameTime);
+
+        base.Update(gameTime);
+    }
+
+    protected override void Draw(GameTime gameTime)
+    {
+        spriteBatch?.Begin();
+        stateManager.Draw(spriteBatch!);
+        spriteBatch?.End();
+
+        base.Draw(gameTime);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            spriteBatch?.Dispose();
+            SteamManager.Shutdown();
+            EcsWorld.Dispose();
+        }
+        base.Dispose(disposing);
+    }
 }

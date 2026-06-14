@@ -5,20 +5,25 @@ namespace MyGame.Gameplay.Networking;
 
 public class RemoteSessionManager
 {
-	private readonly Dictionary<string, Entity> _sessions = new();
+	private readonly Dictionary<ulong, Entity> sessions = new();
 
-	public bool TryGetPlayer(string entityKey, out Entity shadowEntity)
+	public bool TryGetPlayer(ulong networkId, out Entity shadowEntity)
 	{
-		return _sessions.TryGetValue(entityKey, out shadowEntity);
+		return sessions.TryGetValue(networkId, out shadowEntity);
 	}
 
-	public void RegisterPlayer(string entityKey, Entity shadowEntity)
+	public void RegisterPlayer(ulong networkId, Entity shadowEntity)
 	{
-		_sessions.TryAdd(entityKey, shadowEntity);
+		sessions.TryAdd(networkId, shadowEntity);
+	}
+
+	public void RemoveSession(ulong networkId)
+	{
+		sessions.Remove(networkId);
 	}
 
 	public void ClearSessions()
 	{
-		_sessions.Clear();
+		sessions.Clear();
 	}
 }

@@ -1,19 +1,24 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace MyGame.Gameplay;
+namespace MyGame.Gameplay.Networking;
 
-// Pack=1 ensures the C# compiler doesn't add empty padding bytes between variables
+public static class PacketTypes
+{
+	public const byte Transform = 1;
+}
+
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct PlayerTransformPacket
 {
 	public byte PacketType;
+	public uint SequenceNumber;
 	public int CharacterClassId;
 	public float X;
 	public float Y;
 	public float Vx;
 	public float Vy;
+	public ulong EntityNetworkSequenceId;
 
-	// Zero-allocation serialization straight into a pre-existing byte array buffer
 	public unsafe void SerializeTo(byte[] buffer)
 	{
 		fixed (byte* ptr = buffer)
@@ -22,9 +27,11 @@ public struct PlayerTransformPacket
 		}
 	}
 
-	// Zero-allocation deserialization reading straight off the incoming packet memory
 	public static unsafe PlayerTransformPacket Deserialize(byte[] data)
 	{
+		if (data.Length < sizeof(PlayerTransformPacket))
+			return default;
+
 		fixed (byte* ptr = data)
 		{
 			return *(PlayerTransformPacket*)ptr;

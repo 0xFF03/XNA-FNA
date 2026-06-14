@@ -6,7 +6,6 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <DisableWinExeConsoleCheck>true</DisableWinExeConsoleCheck>
     </PropertyGroup>
 
     <ItemGroup>
@@ -35,6 +34,7 @@
 
     <ItemGroup>
         <Folder Include="Content\" />
+        <Folder Include="Gameplay\Prefabs\" />
     </ItemGroup>
 
 </Project>

@@ -28,7 +28,7 @@ public class Button
 		// Check if the mouse is currently hovering over the button bounds
 		if (bounds.Contains(currentMouse.X, currentMouse.Y))
 		{
-			// ROBUST CLICK LOGIC: Trigger ONLY when the player lifts their finger off the button
+			// Trigger ONLY when the player lifts their finger off the button
 			if (currentMouse.LeftButton == ButtonState.Released && previousMouse.LeftButton == ButtonState.Pressed)
 			{
 				OnClick?.Invoke();

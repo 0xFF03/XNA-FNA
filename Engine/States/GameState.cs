@@ -16,7 +16,6 @@ public abstract class GameState
 
 	public abstract void LoadContent();
 
-	// NEW: Base method allowing any state to safely clean up unmanaged memory
 	public virtual void UnloadContent() { }
 
 	public abstract void Update(GameTime gameTime);
