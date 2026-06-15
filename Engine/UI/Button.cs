@@ -26,6 +26,9 @@ public class Button
     public Color HoverColor { get; set; } = Color.SlateBlue;
     public Color TextColor { get; set; } = Color.White;
 
+    // ARCHITECTURE FIX: UI Disabled State Support
+    public bool IsEnabled { get; set; } = true;
+
     public Button(Texture2D texture, Rectangle bounds)
     {
         this.texture = texture;
@@ -34,6 +37,8 @@ public class Button
 
     public void Update()
     {
+        if (!IsEnabled) return; // Ignore input if disabled
+
         previousMouse = currentMouse;
         currentMouse = Mouse.GetState();
 
@@ -48,7 +53,9 @@ public class Button
 
     public void Draw(SpriteBatch spriteBatch)
     {
-        Color btnTint = Bounds.Contains(currentMouse.X, currentMouse.Y) ? HoverColor : NormalColor;
+        // Visually gray out the button if it is disabled
+        Color btnTint = !IsEnabled ? Color.DimGray :
+                        (Bounds.Contains(currentMouse.X, currentMouse.Y) ? HoverColor : NormalColor);
 
         spriteBatch.Draw(texture, Bounds, btnTint);
 
@@ -62,7 +69,8 @@ public class Button
               Bounds.Y + (Bounds.Height - textSize.Y) * 0.5f
            );
 
-           FSColor fsColor = new FSColor(TextColor.R, TextColor.G, TextColor.B, TextColor.A);
+           Color finalTextColor = !IsEnabled ? Color.Gray : TextColor;
+           FSColor fsColor = new FSColor(finalTextColor.R, finalTextColor.G, finalTextColor.B, finalTextColor.A);
 
            font.DrawText(AssetManager.FontRenderer, Text, textPos, fsColor);
         }

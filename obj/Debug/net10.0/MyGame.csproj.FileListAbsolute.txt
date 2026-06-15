@@ -45,3 +45,9 @@ C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.genruntimeconfig.
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\ref\MyGame.dll
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\steam_appid.txt
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.sourcelink.json
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Fonts\DefaultFont.ttf
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\FAudio.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\FNA3D.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\libtheorafile.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\SDL3.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\steam_api.dll

@@ -5,11 +5,12 @@ namespace MyGame.Engine.Networking;
 
 public static class NetworkIdGenerator
 {
-	private static ulong _currentId = 0;
+	private static uint _currentId = 0;
 
 	public static ulong GetNext()
 	{
-		return ++_currentId;
+		ulong accountId = SteamClient.SteamId.AccountId;
+		return (accountId << 32) | (++_currentId);
 	}
 
 	public static void ResetSequence()

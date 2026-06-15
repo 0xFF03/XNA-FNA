@@ -58,10 +58,16 @@ public static class AssetManager
 
     public static void UnloadAll()
     {
-        foreach (var tex in Textures.Values) tex.Dispose();
+        // ARCHITECTURE FIX: Added IsDisposed checks to prevent runtime exceptions
+        foreach (var tex in Textures.Values)
+        {
+            if (!tex.IsDisposed) tex.Dispose();
+        }
         Textures.Clear();
+
         FontSystem.Reset();
-        WhitePixel?.Dispose();
+
+        if (WhitePixel != null && !WhitePixel.IsDisposed) WhitePixel.Dispose();
         IsFontLoaded = false;
     }
 }

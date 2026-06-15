@@ -24,10 +24,24 @@ public class MainMenuState : GameState
         {
             Text = "Start Game", NormalColor = Color.DarkSlateBlue, HoverColor = Color.SlateBlue
         };
-        startButton.OnClick += () =>
+
+        // ARCHITECTURE FIX: Await lobby readiness to prevent race-condition flashes
+        startButton.OnClick += async () =>
         {
-            SteamManager.CreateLobby();
-            stateManager.ChangeState(new CharacterSelectState(game, stateManager));
+            startButton.IsEnabled = false;
+            startButton.Text = "Creating Lobby...";
+
+            await SteamManager.CreateLobby();
+
+            if (SteamManager.CurrentLobby.HasValue)
+            {
+                stateManager.ChangeState(new CharacterSelectState(game, stateManager));
+            }
+            else
+            {
+                startButton.IsEnabled = true;
+                startButton.Text = "Start Game";
+            }
         };
 
         optionsButton = new Button(uiTex, Rectangle.Empty)

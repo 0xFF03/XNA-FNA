@@ -9,6 +9,10 @@ public static class PacketTypes
     public const byte Transform = 1;
     public const byte Spawn = 2;
     public const byte DynamicString = 3;
+
+    public const byte LobbyStart = 10;
+    public const byte PauseGame = 11;
+    public const byte ResumeGame = 12;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -65,7 +69,7 @@ public static class DynamicPacketWriter
         byte[] finalPacket = new byte[2 + stringBytes.Length];
 
         finalPacket[0] = PacketTypes.DynamicString;
-        finalPacket[1] = stringTypeIdentifier; // e.g., 0 for Chat, 1 for MapName
+        finalPacket[1] = stringTypeIdentifier;
 
         Buffer.BlockCopy(stringBytes, 0, finalPacket, 2, stringBytes.Length);
 

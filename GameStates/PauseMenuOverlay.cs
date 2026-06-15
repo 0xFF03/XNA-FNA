@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MyGame.Engine.States;
-using MyGame.Engine.UI; // Engine agnostic tools imported here
+using MyGame.Engine.UI;
 using MyGame.Engine.Core;
 using MyGame.Engine.Networking;
 using Steamworks;
@@ -13,6 +13,7 @@ namespace MyGame.GameStates.UI;
 public class PauseMenuOverlay
 {
     public bool IsPaused { get; private set; } = false;
+    private int previousMemberCount = 0;
 
     private readonly Game1 game;
     private readonly StateManager stateManager;
@@ -50,6 +51,16 @@ public class PauseMenuOverlay
         var currentKeyboardState = Keyboard.GetState();
         ListenForNetworkSignals();
 
+        if (SteamManager.CurrentLobby.HasValue)
+        {
+            int currentMembers = SteamManager.CurrentLobby.Value.MemberCount;
+            if (IsPaused && currentMembers < previousMemberCount)
+            {
+                TransmitPauseState(false);
+            }
+            previousMemberCount = currentMembers;
+        }
+
         if (currentKeyboardState.IsKeyDown(Keys.Escape) && previousKeyboardState.IsKeyUp(Keys.Escape))
         {
             TransmitPauseState(!IsPaused);
@@ -73,32 +84,32 @@ public class PauseMenuOverlay
 
     private void ListenForNetworkSignals()
     {
-        while (SteamNetworking.IsP2PPacketAvailable(1))
+        while (SteamNetworking.IsP2PPacketAvailable(2))
         {
-            var packetData = SteamNetworking.ReadP2PPacket(1);
-            if (packetData.HasValue && packetData.Value.Data.Length > 0)
-            {
-                byte signal = packetData.Value.Data[0];
-                if (signal == 98) IsPaused = true;
-                else if (signal == 97) IsPaused = false;
-            }
+           var packetData = SteamNetworking.ReadP2PPacket(2);
+           if (packetData.HasValue && packetData.Value.Data.Length > 0)
+           {
+              byte signal = packetData.Value.Data[0];
+              if (signal == PacketTypes.PauseGame) IsPaused = true;
+              else if (signal == PacketTypes.ResumeGame) IsPaused = false;
+           }
         }
     }
 
     private void TransmitPauseState(bool enforcePause)
     {
         IsPaused = enforcePause;
-        signalBuffer[0] = IsPaused ? (byte)98 : (byte)97;
+        signalBuffer[0] = IsPaused ? PacketTypes.PauseGame : PacketTypes.ResumeGame;
 
         if (SteamManager.CurrentLobby.HasValue)
         {
-            foreach (var member in SteamManager.CurrentLobby.Value.Members)
-            {
-                if (member.Id != SteamClient.SteamId)
-                {
-                    SteamNetworking.SendP2PPacket(member.Id, signalBuffer, 1, 1, P2PSend.Reliable);
-                }
-            }
+           foreach (var member in SteamManager.CurrentLobby.Value.Members)
+           {
+              if (member.Id != SteamClient.SteamId)
+              {
+                 SteamNetworking.SendP2PPacket(member.Id, signalBuffer, signalBuffer.Length, 2, P2PSend.Reliable);
+              }
+           }
         }
     }
 

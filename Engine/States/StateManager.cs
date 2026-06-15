@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -6,67 +7,77 @@ namespace MyGame.Engine.States;
 
 public class StateManager
 {
-	private readonly List<GameState> stateStack = new();
-	private readonly List<System.Action> pendingOperations = new();
+    private readonly List<GameState> stateStack = new();
+    private readonly List<Action> pendingOperations = new();
 
-	public static StateManager Instance { get; private set; } = null!;
+    // ARCHITECTURE FIX: Prevents visual "flash" by blocking updates/draws during transitions
+    public bool IsTransitioning { get; private set; } = false;
 
-	public StateManager()
-	{
-		Instance = this;
-	}
+    public static StateManager Instance { get; private set; } = null!;
 
-	public void PushState(GameState state)
-	{
-		pendingOperations.Add(() =>
-		{
-			stateStack.Add(state);
-			state.LoadContent();
-		});
-	}
+    public StateManager()
+    {
+       Instance = this;
+    }
 
-	public void PopState()
-	{
-		pendingOperations.Add(() =>
-		{
-			if (stateStack.Count > 0)
-			{
-				stateStack[^1].UnloadContent();
-				stateStack.RemoveAt(stateStack.Count - 1);
-			}
-		});
-	}
+    public void PushState(GameState state)
+    {
+       pendingOperations.Add(() =>
+       {
+          stateStack.Add(state);
+          state.LoadContent();
+       });
+    }
 
-	public void ChangeState(GameState state)
-	{
-		pendingOperations.Add(() =>
-		{
-			foreach (var existingState in stateStack)
-			{
-				existingState.UnloadContent();
-			}
+    public void PopState()
+    {
+       pendingOperations.Add(() =>
+       {
+          if (stateStack.Count > 0)
+          {
+             stateStack[^1].UnloadContent();
+             stateStack.RemoveAt(stateStack.Count - 1);
+          }
+       });
+    }
 
-			stateStack.Clear();
-			stateStack.Add(state);
-			state.LoadContent();
-		});
-	}
+    public void ChangeState(GameState state)
+    {
+       // ARCHITECTURE FIX: Block incoming input/update logic during transition
+       IsTransitioning = true;
+       pendingOperations.Clear();
 
-	public void Update(GameTime gameTime)
-	{
-		foreach (var op in pendingOperations) op();
-		pendingOperations.Clear();
+       pendingOperations.Add(() =>
+       {
+          foreach (var existingState in stateStack)
+          {
+             existingState.UnloadContent();
+          }
 
-		if (stateStack.Count == 0) return;
-		stateStack[^1].Update(gameTime);
-	}
+          stateStack.Clear();
+          stateStack.Add(state);
+          state.LoadContent();
 
-	public void Draw(SpriteBatch spriteBatch)
-	{
-		if (stateStack.Count == 0) return;
-		foreach (var state in stateStack)
-		{
-			state.Draw(spriteBatch);
-		}
-	}
+          // Re-enable rendering
+          IsTransitioning = false;
+       });
+    }
+
+    public void Update(GameTime gameTime)
+    {
+       foreach (var op in pendingOperations) op();
+       pendingOperations.Clear();
+
+       if (IsTransitioning || stateStack.Count == 0) return;
+       stateStack[^1].Update(gameTime);
+    }
+
+    public void Draw(SpriteBatch spriteBatch)
+    {
+       if (IsTransitioning || stateStack.Count == 0) return;
+       foreach (var state in stateStack)
+       {
+          state.Draw(spriteBatch);
+       }
+    }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Steamworks;
 using Steamworks.Data;
 using MyGame.Engine.States;
@@ -56,7 +57,8 @@ public static class SteamManager
         }
     }
 
-    public static async void CreateLobby()
+    // ARCHITECTURE FIX: Changed async void to async Task for execution safety
+    public static async Task CreateLobby()
     {
         if (!IsSteamActive) return;
 
@@ -102,6 +104,7 @@ public static class SteamManager
         }
     }
 
+    // ARCHITECTURE FIX: Async Task
     private static async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
     {
         try

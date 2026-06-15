@@ -218,3 +218,10 @@ C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Release\net10.0\win-x64\refint\MyGame.
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Release\net10.0\win-x64\MyGame.pdb
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Release\net10.0\win-x64\MyGame.genruntimeconfig.cache
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Release\net10.0\win-x64\ref\MyGame.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\Content\Fonts\DefaultFont.ttf
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Release\net10.0\win-x64\MyGame.sourcelink.json
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\fnalibs\FAudio.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\fnalibs\FNA3D.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\fnalibs\libtheorafile.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\fnalibs\SDL3.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Release\net10.0\win-x64\fnalibs\steam_api.dll

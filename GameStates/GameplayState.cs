@@ -9,6 +9,7 @@ using MyGame.Engine.Core;
 using MyGame.Gameplay.Components;
 using MyGame.Gameplay.Prefabs;
 using MyGame.GameStates.UI;
+using MyGame.Gameplay.Systems;
 using Flecs.NET.Core;
 using Steamworks;
 
@@ -36,10 +37,8 @@ public class GameplayState : GameState
     {
         pauseMenu = new PauseMenuOverlay(game, stateManager);
         camera = new Camera2D(game.GraphicsDevice);
-
         camera.Position = new Vector2(400, 300);
 
-        NetworkIdGenerator.ResetSequence();
         Entity localAvatar = PlayerFactory.CreateLocal(ecsWorld, selectedClassId);
 
         if (SteamManager.IsSteamActive && SteamManager.CurrentLobby.HasValue)
@@ -86,6 +85,9 @@ public class GameplayState : GameState
                 entity.Destruct();
             }
         }
+
+        NetworkReceiverSystem.ClearShadows();
+        NetworkIdGenerator.ResetSequence();
 
         Console.WriteLine("[Gameplay]: Active match simulation cleared safely via Native Deferred Teardown.");
     }

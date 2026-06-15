@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Flecs.NET.Core;
 using Steamworks;
 using MyGame.Engine.Networking;
@@ -9,6 +10,13 @@ namespace MyGame.Gameplay.Systems;
 
 public static class NetworkReceiverSystem
 {
+    private static readonly Dictionary<ulong, Entity> NetworkShadows = new();
+
+    public static void ClearShadows()
+    {
+        NetworkShadows.Clear();
+    }
+
     public static void Register(Flecs.NET.Core.World world)
     {
         world.System("NetworkReceiverSystem")
@@ -17,7 +25,6 @@ public static class NetworkReceiverSystem
             {
                 if (!SteamManager.IsSteamActive) return;
 
-                // Process data updates coming from peer channels
                 while (SteamNetworking.IsP2PPacketAvailable(0))
                 {
                     var packetData = SteamNetworking.ReadP2PPacket(0);
@@ -28,16 +35,12 @@ public static class NetworkReceiverSystem
 
                     if (buffer.Length == 0) continue;
 
-                    byte packetType = buffer[0];
-                    switch (packetType)
+                    if (buffer[0] == PacketTypes.Transform)
                     {
-                        case PacketTypes.Transform:
-                            ProcessTransformPacket(world, buffer, senderId);
-                            break;
+                        ProcessTransformPacket(_.World(), buffer, senderId);
                     }
                 }
 
-                // Drain and unpack the Reliable Signalling Channel (Channel 1)
                 while (SteamNetworking.IsP2PPacketAvailable(1))
                 {
                     var packetData = SteamNetworking.ReadP2PPacket(1);
@@ -48,12 +51,9 @@ public static class NetworkReceiverSystem
 
                     if (buffer.Length == 0) continue;
 
-                    byte packetType = buffer[0];
-                    switch (packetType)
+                    if (buffer[0] == PacketTypes.Spawn)
                     {
-                        case PacketTypes.Spawn:
-                            ProcessSpawnPacket(world, buffer, senderId);
-                            break;
+                        ProcessSpawnPacket(_.World(), buffer, senderId);
                     }
                 }
             });
@@ -67,11 +67,14 @@ public static class NetworkReceiverSystem
         if (packet.EntityNetworkSequenceId == 0) return;
 
         ulong netId = packet.EntityNetworkSequenceId;
-        string entityLookupName = $"p_{netId}";
 
-        Entity remoteShadow = world.Lookup(entityLookupName);
+        if (!NetworkShadows.TryGetValue(netId, out Entity remoteShadow)) return;
 
-        if (!remoteShadow.IsAlive()) return;
+        if (!remoteShadow.IsAlive())
+        {
+            NetworkShadows.Remove(netId);
+            return;
+        }
 
         ref var currentSequence = ref remoteShadow.GetMut<NetworkSequence>();
         if (packet.SequenceNumber < currentSequence.LatestSequence) return;
@@ -89,24 +92,28 @@ public static class NetworkReceiverSystem
         if (packet.EntityNetworkSequenceId == 0) return;
 
         ulong netId = packet.EntityNetworkSequenceId;
+
+        if (NetworkShadows.TryGetValue(netId, out Entity existingEntity))
+        {
+            if (existingEntity.IsAlive()) return;
+            NetworkShadows.Remove(netId);
+        }
+
         string entityLookupName = $"p_{netId}";
 
-        Entity remoteShadow = world.Lookup(entityLookupName);
-
-        if (!remoteShadow.IsAlive())
+        var mockTransform = new PlayerTransformPacket
         {
-            var mockTransform = new PlayerTransformPacket
-            {
-                X = packet.StartX,
-                Y = packet.StartY,
-                Vx = 0,
-                Vy = 0,
-                CharacterClassId = packet.CharacterClassId,
-                EntityNetworkSequenceId = packet.EntityNetworkSequenceId
-            };
+            X = packet.StartX,
+            Y = packet.StartY,
+            Vx = 0,
+            Vy = 0,
+            CharacterClassId = packet.CharacterClassId,
+            EntityNetworkSequenceId = packet.EntityNetworkSequenceId
+        };
 
-            remoteShadow = PlayerFactory.CreateRemote(world, entityLookupName, mockTransform, senderId);
-            Console.WriteLine($"[Network Handshake]: Spawned verified remote entity shadow proxy: {entityLookupName}");
-        }
+        Entity newShadow = PlayerFactory.CreateRemote(world, entityLookupName, mockTransform, senderId);
+        NetworkShadows[netId] = newShadow;
+
+        Console.WriteLine($"[Network Handshake]: Spawned verified remote entity shadow proxy: {entityLookupName}");
     }
 }
