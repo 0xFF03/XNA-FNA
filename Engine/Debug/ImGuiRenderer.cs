@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -9,27 +8,29 @@ using ImGuiNET;
 
 namespace MyGame.Engine.Debug;
 
-public class ImGuiRenderer
+// ARCHITECTURE FIX: Class sealed to prevent virtual member call issues in the constructor.
+public sealed class ImGuiRenderer
 {
-    private Game _game;
-    private GraphicsDevice _graphicsDevice;
-    private BasicEffect _effect = null!;
-    private RasterizerState _rasterizerState;
+    // ARCHITECTURE FIX: Explicit framework Game type avoids the "MyGame.Game" namespace collision
+    private readonly Microsoft.Xna.Framework.Game _game;
+    private readonly GraphicsDevice _graphicsDevice;
+    private BasicEffect? _effect;
+    private readonly RasterizerState _rasterizerState;
 
-    private byte[] _vertexData = null!;
-    private VertexBuffer _vertexBuffer = null!;
+    private byte[]? _vertexData;
+    private VertexBuffer? _vertexBuffer;
     private int _vertexBufferSize;
 
-    private byte[] _indexData = null!;
-    private IndexBuffer _indexBuffer = null!;
+    private byte[]? _indexData;
+    private IndexBuffer? _indexBuffer;
     private int _indexBufferSize;
 
-    private Dictionary<IntPtr, Texture2D> _loadedTextures;
+    private readonly Dictionary<IntPtr, Texture2D> _loadedTextures;
     private int _textureId;
     private IntPtr? _fontTextureId;
     private int _scrollWheelValue;
 
-    public ImGuiRenderer(Game game)
+    public ImGuiRenderer(Microsoft.Xna.Framework.Game game)
     {
         var context = ImGui.CreateContext();
         ImGui.SetCurrentContext(context);
@@ -37,7 +38,7 @@ public class ImGuiRenderer
         _graphicsDevice = game.GraphicsDevice;
         _loadedTextures = new Dictionary<IntPtr, Texture2D>();
 
-        _rasterizerState = new RasterizerState()
+        _rasterizerState = new RasterizerState
         {
             CullMode = CullMode.None,
             DepthBias = 0,
@@ -47,30 +48,30 @@ public class ImGuiRenderer
         SetupInput();
     }
 
-    public virtual unsafe void RebuildFontAtlas()
+    public unsafe void RebuildFontAtlas()
     {
         var io = ImGui.GetIO();
         io.Fonts.GetTexDataAsRGBA32(out byte* pixelData, out int width, out int height, out int bytesPerPixel);
         var pixels = new byte[width * height * bytesPerPixel];
         Marshal.Copy(new IntPtr(pixelData), pixels, 0, pixels.Length);
 
-        var tex2d = new Texture2D(_graphicsDevice, width, height, false, SurfaceFormat.Color);
-        tex2d.SetData(pixels);
+        var tex2D = new Texture2D(_graphicsDevice, width, height, false, SurfaceFormat.Color);
+        tex2D.SetData(pixels);
 
         if (_fontTextureId.HasValue) UnbindTexture(_fontTextureId.Value);
-        _fontTextureId = BindTexture(tex2d);
+        _fontTextureId = BindTexture(tex2D);
         io.Fonts.SetTexID(_fontTextureId.Value);
         io.Fonts.ClearTexData();
     }
 
-    public IntPtr BindTexture(Texture2D texture)
+    private IntPtr BindTexture(Texture2D texture)
     {
         var id = new IntPtr(_textureId++);
         _loadedTextures.Add(id, texture);
         return id;
     }
 
-    public void UnbindTexture(IntPtr textureId)
+    private void UnbindTexture(IntPtr textureId)
     {
         _loadedTextures.Remove(textureId);
     }
@@ -90,14 +91,14 @@ public class ImGuiRenderer
         RenderDrawData(ImGui.GetDrawData());
     }
 
-    protected virtual void SetupInput()
+    private void SetupInput()
     {
         var io = ImGui.GetIO();
         io.BackendFlags |= ImGuiBackendFlags.HasMouseCursors;
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
     }
 
-    protected virtual void UpdateInput()
+    private void UpdateInput()
     {
         var io = ImGui.GetIO();
 
@@ -132,7 +133,7 @@ public class ImGuiRenderer
         int vtxBytes = totalVtxCount * DrawVertDeclaration.Size;
         int idxBytes = totalIdxCount * sizeof(ushort);
 
-        if (vtxBytes > _vertexBufferSize || _vertexBuffer == null)
+        if (vtxBytes > _vertexBufferSize || _vertexBuffer == null || _vertexData == null)
         {
             _vertexBuffer?.Dispose();
             _vertexBufferSize = (int)(vtxBytes * 1.5f);
@@ -140,7 +141,7 @@ public class ImGuiRenderer
             _vertexData = new byte[_vertexBufferSize];
         }
 
-        if (idxBytes > _indexBufferSize || _indexBuffer == null)
+        if (idxBytes > _indexBufferSize || _indexBuffer == null || _indexData == null)
         {
             _indexBuffer?.Dispose();
             _indexBufferSize = (int)(idxBytes * 1.5f);
@@ -176,29 +177,32 @@ public class ImGuiRenderer
         {
             var cmdList = drawData.CmdLists[n];
 
-            for (int cmdi = 0; cmdi < cmdList.CmdBuffer.Size; cmdi++)
+            for (int cmdIndex = 0; cmdIndex < cmdList.CmdBuffer.Size; cmdIndex++)
             {
-                var pcmd = cmdList.CmdBuffer[cmdi];
-                if (!_loadedTextures.ContainsKey(pcmd.TextureId)) continue;
+                var cmd = cmdList.CmdBuffer[cmdIndex];
+                if (!_loadedTextures.ContainsKey(cmd.TextureId)) continue;
 
                 _graphicsDevice.ScissorRectangle = new Rectangle(
-                    (int)pcmd.ClipRect.X, (int)pcmd.ClipRect.Y,
-                    (int)(pcmd.ClipRect.Z - pcmd.ClipRect.X),
-                    (int)(pcmd.ClipRect.W - pcmd.ClipRect.Y));
+                    (int)cmd.ClipRect.X, (int)cmd.ClipRect.Y,
+                    (int)(cmd.ClipRect.Z - cmd.ClipRect.X),
+                    (int)(cmd.ClipRect.W - cmd.ClipRect.Y));
 
-                _effect.Texture = _loadedTextures[pcmd.TextureId];
-                foreach (var pass in _effect.CurrentTechnique.Passes)
+                if (_effect != null)
                 {
-                    pass.Apply();
+                    _effect.Texture = _loadedTextures[cmd.TextureId];
+                    foreach (var pass in _effect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
 
-                    _graphicsDevice.DrawIndexedPrimitives(
-                        PrimitiveType.TriangleList,
-                        globalVtxOffset,
-                        0,
-                        cmdList.VtxBuffer.Size,
-                        globalIdxOffset + (int)pcmd.IdxOffset,
-                        (int)(pcmd.ElemCount / 3)
-                    );
+                        _graphicsDevice.DrawIndexedPrimitives(
+                            PrimitiveType.TriangleList,
+                            globalVtxOffset,
+                            0,
+                            cmdList.VtxBuffer.Size,
+                            globalIdxOffset + (int)cmd.IdxOffset,
+                            (int)(cmd.ElemCount / 3)
+                        );
+                    }
                 }
             }
 
@@ -211,16 +215,13 @@ public class ImGuiRenderer
 
     private void SetupRenderState(ImDrawDataPtr drawData)
     {
-        if (_effect == null)
+        _effect ??= new BasicEffect(_graphicsDevice)
         {
-            _effect = new BasicEffect(_graphicsDevice)
-            {
-                World = Matrix.Identity,
-                View = Matrix.Identity,
-                TextureEnabled = true,
-                VertexColorEnabled = true
-            };
-        }
+            World = Matrix.Identity,
+            View = Matrix.Identity,
+            TextureEnabled = true,
+            VertexColorEnabled = true
+        };
 
         _graphicsDevice.SetVertexBuffer(_vertexBuffer);
         _graphicsDevice.Indices = _indexBuffer;
@@ -233,7 +234,7 @@ public class ImGuiRenderer
         _graphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
     }
 
-    public static class DrawVertDeclaration
+    private static class DrawVertDeclaration
     {
         public static readonly int Size = 20;
         public static readonly VertexDeclaration Declaration = new VertexDeclaration(

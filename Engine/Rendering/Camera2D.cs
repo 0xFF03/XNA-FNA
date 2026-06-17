@@ -37,7 +37,8 @@ public class Camera2D
 	{
 		Vector2 clamped = GetClampedPosition(virtualWidth, virtualHeight);
 
-		return Matrix.CreateTranslation(new Vector3(-(int)clamped.X, -(int)clamped.Y, 0)) *
+		// Matrix math remains fractional, ensuring the camera view itself is smooth
+		return Matrix.CreateTranslation(new Vector3(-clamped.X, -clamped.Y, 0)) *
 		       Matrix.CreateRotationZ(Rotation) *
 		       Matrix.CreateScale(new Vector3(Zoom, Zoom, 1)) *
 		       Matrix.CreateTranslation(new Vector3(virtualWidth * 0.5f, virtualHeight * 0.5f, 0));

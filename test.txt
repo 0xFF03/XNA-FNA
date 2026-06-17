@@ -1,0 +1,29 @@
+﻿MyGame/
+├── Engine/           <-- Agnostic framework. Ignorant of your Metroidvania rules.
+│   ├── Core/         (AssetManager, EngineLogger, SettingsManager)
+│   ├── Debug/        (DebugUIManager, ImGuiRenderer)
+│   ├── Input/        (InputManager)
+│   ├── Networking/   (SteamManager, SteamAvatarCache, NetworkRouter, NetworkPackets)
+│   ├── Rendering/    (Camera2D)
+│   ├── States/       (StateManager, GameState)
+│   └── UI/           (Button, FNAFontRenderer)
+│
+├── Game/             <-- Your specific game logic. 
+│   ├── Core/         (TransformSystems, TransformComponents)
+│   ├── Combat/       (LocalHitDetectionSystem, CombatComponents)
+│   ├── Physics/      (LocalPlayerSystems, PhysicsComponents)
+│   ├── NetworkSync/  (DistributedEventSystem, NetworkReceiverSystem, NetworkCleanupSystem, NetworkRegistry)
+│   ├── Renderers/    (PlayerRenderSystem, ProjectileRenderSystem, TileRenderSystem)
+│   ├── World/        (MapSpawningSystem, MapComponents, LdtkModels, MapLoader)
+│   └── Features/     (See note below regarding "GameData" vs "Features")
+│
+├── Prefabs/          <-- Entity factories.
+│   ├── PlayerFactory.cs
+│   └── ProjectileFactory.cs
+│
+└── UIStates/         <-- Your specific menus.
+    ├── CharacterSelectState.cs
+    ├── GameplayState.cs
+    ├── MainMenuState.cs
+    ├── OptionsState.cs
+    └── FriendsListOverlay.cs

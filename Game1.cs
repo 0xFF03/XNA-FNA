@@ -6,17 +6,24 @@ using MyGame.Engine.States;
 using MyGame.Engine.Core;
 using MyGame.Engine.Input;
 using MyGame.Engine.Debug;
-using MyGame.GameStates;
-using MyGame.Gameplay.Systems;
-using LiteDB;
 using MyGame.Engine.Networking;
+using LiteDB;
+
+// Injecting your feature-domain folders
+using MyGame.Game.UIStates;
+using MyGame.Game.Core;
+using MyGame.Game.Combat;
+using MyGame.Game.Physics;
+using MyGame.Game.NetworkSync;
+using MyGame.Game.Renderers;
+using MyGame.Game.Environment;
 
 using FlecsWorld = Flecs.NET.Core.World;
 using PhysicsWorld2D = nkast.Aether.Physics2D.Dynamics.World;
 
 namespace MyGame;
 
-public class Game1 : Game
+public class Game1 : Microsoft.Xna.Framework.Game
 {
     private readonly GraphicsDeviceManager graphics;
     private SpriteBatch? spriteBatch;
@@ -26,6 +33,7 @@ public class Game1 : Game
     private double _timeAccumulator = 0.0;
 
     public static Game1 Instance { get; private set; } = null!;
+    public static double LastUpdateDurationMs { get; private set; }
 
     public FlecsWorld EcsWorld { get; private set; }
     public PhysicsWorld2D PhysicsWorld { get; private set; }
@@ -60,6 +68,12 @@ public class Game1 : Game
         base.Initialize();
     }
 
+    protected override void OnActivated(object sender, EventArgs args)
+    {
+        InputManager.ResetState();
+        base.OnActivated(sender, args);
+    }
+
     protected override void LoadContent()
     {
         spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -72,24 +86,24 @@ public class Game1 : Game
         DebugUI = new DebugUIManager();
         DebugUI.Initialize(this);
 
-        // Core Systems
+        // Core & Physics
         TransformSystems.Register(EcsWorld);
         LocalPlayerSystems.Register(EcsWorld);
         RemotePlayerSystems.Register(EcsWorld);
 
-        // Networking Systems
+        // Network Synchronization Pipeline
+        NetworkRegistry.Register(EcsWorld);
         NetworkReceiverSystem.Register(EcsWorld);
         NetworkBroadcastSystem.Register(EcsWorld);
         NetworkCleanupSystem.Register(EcsWorld);
 
-        // Combat & Event Systems
+        // Combat & Distributed Authority
         ProjectileSystem.Register(EcsWorld);
         LocalHitDetectionSystem.Register(EcsWorld);
-        DistributedEventSystem.Register(EcsWorld); // Fixed Duplicate Registration
+        DistributedEventSystem.Register(EcsWorld);
 
-        // Render & Map Systems
+        // Environment & Rendering
         MapSpawningSystem.Register(EcsWorld);
-
         TileRenderSystem.Initialize(EcsWorld, spriteBatch);
         PlayerRenderSystem.Initialize(EcsWorld);
         ProjectileRenderSystem.Initialize(EcsWorld);
@@ -99,6 +113,8 @@ public class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
         SteamManager.Update();
         NetworkRouter.RouteControlPackets();
 
@@ -113,6 +129,14 @@ public class Game1 : Game
         }
 
         base.Update(gameTime);
+        sw.Stop();
+
+        LastUpdateDurationMs = sw.Elapsed.TotalMilliseconds;
+
+        if (LastUpdateDurationMs > 18.0)
+        {
+            EngineLogger.LogPerformance("Game1.Update", LastUpdateDurationMs);
+        }
     }
 
     protected override void Draw(GameTime gameTime)
@@ -133,10 +157,7 @@ public class Game1 : Game
         if (disposing)
         {
             spriteBatch?.Dispose();
-
-            // ARCHITECTURE FIX: Ensure unmanaged texture memory downloaded by Steam is cleared
             SteamAvatarCache.Clear();
-
             SteamManager.Shutdown();
             EcsWorld.Dispose();
             LocalDatabase.Dispose();

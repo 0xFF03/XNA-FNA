@@ -41,4 +41,11 @@
         <PackageReference Include="MemoryPack" Version="1.21.4" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Game\AI\" />
+      <Folder Include="Game\Animations\" />
+      <Folder Include="Game\Items\" />
+      <Folder Include="Game\Systems\" />
+    </ItemGroup>
+
 </Project>

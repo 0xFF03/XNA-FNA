@@ -9,6 +9,7 @@ public static class SteamAvatarCache
 {
     private static readonly Dictionary<SteamId, Texture2D> _cache = new();
     private static readonly HashSet<SteamId> _fetching = new();
+    private static readonly HashSet<SteamId> _failedFetches = new(); // ARCHITECTURE FIX: Tracks dead links
 
     // Thread-safe queue for transferring background image data to the Main Thread
     private static readonly ConcurrentQueue<(SteamId, Steamworks.Data.Image)> _pendingTextures = new();
@@ -16,6 +17,7 @@ public static class SteamAvatarCache
     public static Texture2D? GetAvatar(SteamId steamId)
     {
         if (_cache.TryGetValue(steamId, out Texture2D? tex)) return tex;
+        if (_failedFetches.Contains(steamId)) return null; // Do not infinitely spam Steam API for a broken avatar
 
         if (!_fetching.Contains(steamId))
         {
@@ -35,7 +37,8 @@ public static class SteamAvatarCache
         }
         else
         {
-            _fetching.Remove(steamId); // Failed, allow retry later
+            _fetching.Remove(steamId);
+            _failedFetches.Add(steamId); // Mark as failed so we don't retry every single frame
         }
     }
 
@@ -63,6 +66,7 @@ public static class SteamAvatarCache
         }
         _cache.Clear();
         _fetching.Clear();
+        _failedFetches.Clear();
         _pendingTextures.Clear();
     }
 }

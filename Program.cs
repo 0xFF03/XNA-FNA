@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.ExceptionServices;
 using MyGame.Engine.Networking;
 using MyGame.Engine.Core;
 
@@ -20,12 +19,15 @@ public static class Program
 			EngineLogger.Shutdown();
 		};
 
-		// ARCHITECTURE FIX: Catches silent/swallowed background thread errors
+#if DEBUG
+		// ARCHITECTURE FIX: Gated behind DEBUG mode.
+		// FirstChanceException triggers on safely handled internal library exceptions.
+		// Running this in a Release build on Linux/Proton will cause massive I/O lag spikes.
 		AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
 		{
-			// Only log it, don't crash the engine for handled exceptions
 			EngineLogger.Log($"FirstChanceException detected: {eventArgs.Exception.Message}", "DIAGNOSTIC");
 		};
+#endif
 
 		SteamManager.Initialize();
 

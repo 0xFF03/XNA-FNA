@@ -60,6 +60,15 @@ public static class InputManager
         }
     }
 
+    // ARCHITECTURE FIX: Essential for Linux/Proton focus-loss scenarios
+    public static void ResetState()
+    {
+        currentKeyboard = Keyboard.GetState();
+        previousKeyboard = currentKeyboard;
+        _actionBuffer.Clear();
+        _blockInputUntilRelease = true;
+    }
+
     public static bool IsActionActive(string action) => !_blockInputUntilRelease && KeyBindings.TryGetValue(action, out Keys key) && currentKeyboard.IsKeyDown(key);
 
     public static bool ConsumeAction(string action)

@@ -15,7 +15,7 @@ public class Button
 
     public string Text { get; set; } = string.Empty;
     public Texture2D? Icon { get; set; }
-    public bool HasIconSlot { get; set; } = false; // ARCHITECTURE FIX: Explicitly controls placeholders
+    public bool HasIconSlot { get; set; } = false;
 
     public float FontSize { get; set; } = 20f;
     public Rectangle Bounds { get; set; }
@@ -67,7 +67,21 @@ public class Button
         if (!string.IsNullOrEmpty(Text) && AssetManager.IsFontLoaded)
         {
            SpriteFontBase font = AssetManager.GetFont(FontSize);
-           NumericsVector2 textSize = font.MeasureString(Text);
+
+           // ARCHITECTURE FIX: Text Truncation to prevent UI bleeding
+           string displayText = Text;
+           float maxTextWidth = Math.Max(10, Bounds.Width - iconOffset - 10f); // 10px padding
+
+           if (font.MeasureString(displayText).X > maxTextWidth)
+           {
+               while (displayText.Length > 3 && font.MeasureString(displayText + "...").X > maxTextWidth)
+               {
+                   displayText = displayText.Substring(0, displayText.Length - 1);
+               }
+               displayText += "...";
+           }
+
+           NumericsVector2 textSize = font.MeasureString(displayText);
 
            System.Numerics.Vector2 textPos = new System.Numerics.Vector2(
               Bounds.X + iconOffset + (Bounds.Width - iconOffset - textSize.X) * 0.5f,
@@ -75,7 +89,7 @@ public class Button
            );
 
            Color finalTextColor = !IsEnabled ? Color.Gray : TextColor;
-           font.DrawText(AssetManager.FontRenderer, Text, textPos, new FSColor(finalTextColor.R, finalTextColor.G, finalTextColor.B, (byte)255));
+           font.DrawText(AssetManager.FontRenderer, displayText, textPos, new FSColor(finalTextColor.R, finalTextColor.G, finalTextColor.B, (byte)255));
         }
     }
 }

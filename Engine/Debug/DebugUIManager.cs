@@ -1,124 +1,199 @@
-﻿using System;
+﻿using System.Linq;
 using Microsoft.Xna.Framework;
-using ImGuiNET;
+using Microsoft.Xna.Framework.Graphics;
 using Flecs.NET.Core;
-using MyGame.Gameplay.Components;
+using ImGuiNET;
+
+using MyGame.Engine.Core;
+using MyGame.Engine.Input;
 using MyGame.Engine.Networking;
+using MyGame.Prefabs;
+
+using MyGame.Game.Core;
+using MyGame.Game.Combat;
+using MyGame.Game.Physics;
+using MyGame.Game.NetworkSync;
 
 namespace MyGame.Engine.Debug;
 
 public class DebugUIManager
 {
-    private ImGuiRenderer _imGuiRenderer = null!;
+    private ImGuiRenderer imGuiRenderer = null!;
+    private bool isVisible = true;
+    private bool wasF1Pressed = false;
 
-    public bool ShowProfiler = true;
-    public bool ShowNetworkStats = true;
-    public bool ShowPhysicsDebug = true;
-    public bool ShowCombatDebug = true;
+    private int _frameCount = 0;
+    private float _fpsTimer = 0f;
+    private int _currentFps = 0;
 
-    private float _currentFps;
-    private readonly float[] _frametimes = new float[60];
-    private int _frameIndex = 0;
-
-    public void Initialize(Game game)
+    public void Initialize(Game1 game)
     {
-        _imGuiRenderer = new ImGuiRenderer(game);
-        _imGuiRenderer.RebuildFontAtlas();
+       imGuiRenderer = new ImGuiRenderer(game);
+       imGuiRenderer.RebuildFontAtlas();
     }
 
     public void Draw(GameTime gameTime)
     {
-        _imGuiRenderer.BeforeLayout(gameTime);
+       _frameCount++;
+       _fpsTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+       if (_fpsTimer >= 1.0f)
+       {
+           _currentFps = _frameCount;
+           _frameCount = 0;
+           _fpsTimer -= 1.0f;
+       }
 
-        if (ShowProfiler) DrawProfilerWindow(gameTime);
-        if (ShowNetworkStats) DrawNetworkWindow();
-        if (ShowPhysicsDebug) DrawPhysicsWindow();
-        if (ShowCombatDebug) DrawCombatWindow();
+       bool isF1Pressed = Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F1);
+       if (isF1Pressed && !wasF1Pressed) isVisible = !isVisible;
+       wasF1Pressed = isF1Pressed;
 
-        _imGuiRenderer.AfterLayout();
+       if (!isVisible) return;
+
+       imGuiRenderer.BeforeLayout(gameTime);
+
+       DrawProfilerWindow();
+       DrawNetworkProfiler();
+       DrawLoggerConsole();
+       DrawPhysicsWindow();
+       DrawCombatSandbox();
+
+       imGuiRenderer.AfterLayout();
     }
 
-    private void DrawProfilerWindow(GameTime gameTime)
+    private void DrawProfilerWindow()
     {
         ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 10), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(350, 250), ImGuiCond.FirstUseEver);
 
-        if (ImGui.Begin("Engine Profiler", ref ShowProfiler))
+        if (!ImGui.Begin("Engine Profiler"))
         {
-            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            _frametimes[_frameIndex] = dt;
-            _frameIndex = (_frameIndex + 1) % _frametimes.Length;
-
-            float avgFrameTime = 0;
-            foreach (var t in _frametimes) avgFrameTime += t;
-            avgFrameTime /= _frametimes.Length;
-            _currentFps = avgFrameTime > 0 ? 1f / avgFrameTime : 0;
-
-            ImGui.TextColored(new System.Numerics.Vector4(0, 1, 0, 1), $"FPS: {Math.Round(_currentFps)}");
-            ImGui.Text($"Frame Time: {Math.Round(avgFrameTime * 1000, 2)} ms");
-            ImGui.PlotLines("##frametimes", ref _frametimes[0], _frametimes.Length, _frameIndex, "Frametime (ms)", 0f, 0.033f, new System.Numerics.Vector2(0, 40));
-
-            long memoryBytes = GC.GetTotalMemory(false);
-            ImGui.Text($"Managed Heap: {Math.Round(memoryBytes / 1048576.0, 2)} MB");
-            ImGui.TextColored(new System.Numerics.Vector4(0.6f, 0.6f, 0.6f, 1f), $"GC Collections -> Gen0: {GC.CollectionCount(0)} | Gen1: {GC.CollectionCount(1)} | Gen2: {GC.CollectionCount(2)}");
-
-            ImGui.Separator();
-
-            World ecs = Game1.Instance.EcsWorld;
-            ImGui.TextColored(new System.Numerics.Vector4(0, 1, 1, 1), "ECS Architecture:");
-            ImGui.Text($"Local Players: {ecs.Count<LocalPlayerTag>()}");
-            ImGui.Text($"Remote Shadows: {ecs.Count<RemotePlayerTag>()}");
-            ImGui.Text($"Active Projectiles: {ecs.Count<ProjectileTag>()}");
-            ImGui.Text($"Entities with Health: {ecs.Count<Health>()}");
+            ImGui.End();
+            return;
         }
+
+        ImGui.TextColored(new System.Numerics.Vector4(0, 1, 0, 1), $"Render FPS: {_currentFps}");
+        ImGui.Text($"Logic Delta: {System.Math.Round(Game1.LastUpdateDurationMs, 2)} ms");
+
+        float heapMb = System.GC.GetTotalMemory(false) / (1024f * 1024f);
+        ImGui.Text($"Managed Heap: {System.Math.Round(heapMb, 2)} MB");
+        ImGui.Text($"GC Gen 0/1/2: {System.GC.CollectionCount(0)} / {System.GC.CollectionCount(1)} / {System.GC.CollectionCount(2)}");
+
+        ImGui.Separator();
+        ImGui.TextColored(new System.Numerics.Vector4(0, 1, 1, 1), "ECS Architecture:");
+
+        var ecs = Game1.Instance.EcsWorld;
+        ImGui.Text($"Local Players: {ecs.Count<LocalPlayerTag>()}");
+        ImGui.Text($"Remote Shadows: {ecs.Count<RemotePlayerTag>()}");
+        ImGui.Text($"Active Projectiles: {ecs.Count<ProjectileTag>()}");
+        ImGui.Text($"Entities with Health: {ecs.Count<Health>()}");
+
         ImGui.End();
     }
 
-    private void DrawNetworkWindow()
+    private void DrawNetworkProfiler()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 250), ImGuiCond.FirstUseEver);
-        if (ImGui.Begin("Steamworks P2P Monitor", ref ShowNetworkStats))
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(370, 10), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
+
+        if (!ImGui.Begin("Network & Steamworks"))
         {
-            ImGui.Text($"Lobby Status: {(SteamManager.CurrentLobby.HasValue ? "Connected" : "Offline")}");
-            if (SteamManager.CurrentLobby.HasValue)
+            ImGui.End();
+            return;
+        }
+
+        bool steamActive = SteamManager.IsSteamActive;
+        ImGui.TextColored(steamActive ? new System.Numerics.Vector4(0, 1, 0, 1) : new System.Numerics.Vector4(1, 0, 0, 1),
+            steamActive ? "Steam API: ONLINE" : "Steam API: OFFLINE");
+
+        ImGui.Separator();
+
+        if (SteamManager.CurrentLobby is { } lobby)
+        {
+            bool isHost = SteamManager.KnownHostId.HasValue && SteamManager.KnownHostId.Value == Steamworks.SteamClient.SteamId;
+            ImGui.TextColored(new System.Numerics.Vector4(1, 0.8f, 0, 1), isHost ? "[ HOST ]" : "[ CLIENT ]");
+            ImGui.Text($"Lobby ID: {lobby.Id}");
+            ImGui.Text($"Members: {lobby.MemberCount} / {lobby.MaxMembers}");
+            ImGui.Text($"State: {lobby.GetData("GameState")}");
+        }
+        else ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.5f, 0.5f, 1), "Not connected to a Lobby.");
+
+        ImGui.End();
+    }
+
+    private void DrawLoggerConsole()
+    {
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 500), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(660, 200), ImGuiCond.FirstUseEver);
+
+        if (!ImGui.Begin("Live Event Console"))
+        {
+            ImGui.End();
+            return;
+        }
+
+        ImGui.BeginChild("LogScrollRegion", new System.Numerics.Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar);
+
+        lock (EngineLogger.ConsoleLock)
+        {
+            foreach (var log in EngineLogger.LiveConsole)
             {
-                ImGui.Text($"Members: {SteamManager.CurrentLobby.Value.MemberCount}/4");
-                ImGui.TextColored(new System.Numerics.Vector4(1, 0.8f, 0, 1), $"Known Host ID: {SteamManager.KnownHostId?.Value}");
+                if (log.Contains("[ERROR]")) ImGui.TextColored(new System.Numerics.Vector4(1, 0.2f, 0.2f, 1), log);
+                else if (log.Contains("[NETWORK]")) ImGui.TextColored(new System.Numerics.Vector4(0.2f, 0.8f, 1, 1), log);
+                else if (log.Contains("[STEAM]")) ImGui.TextColored(new System.Numerics.Vector4(0.8f, 0.8f, 1f, 1), log);
+                else ImGui.TextUnformatted(log);
             }
         }
+
+        if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY()) ImGui.SetScrollHereY(1.0f);
+
+        ImGui.EndChild();
         ImGui.End();
     }
 
     private void DrawPhysicsWindow()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 370), ImGuiCond.FirstUseEver);
-        if (ImGui.Begin("Aether2D Debug", ref ShowPhysicsDebug))
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 270), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 120), ImGuiCond.FirstUseEver);
+
+        if (!ImGui.Begin("Aether2D Physics"))
         {
-            ImGui.Text($"Active Rigidbodies: {Game1.Instance.PhysicsWorld.BodyList.Count}");
-            ImGui.Text($"Gravity: {Game1.Instance.PhysicsWorld.Gravity.Y}");
+            ImGui.End();
+            return;
         }
+
+        var physWorld = Game1.Instance.PhysicsWorld;
+        ImGui.Text($"Active Rigidbodies: {physWorld.BodyList.Count}");
+        ImGui.Text($"Gravity: {physWorld.Gravity.Y}");
         ImGui.End();
     }
 
-    private void DrawCombatWindow()
+    private void DrawCombatSandbox()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 480), ImGuiCond.FirstUseEver);
-        if (ImGui.Begin("Combat Sandbox", ref ShowCombatDebug))
-        {
-            ImGui.Text("Local Player Testing:");
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(320, 270), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(350, 120), ImGuiCond.FirstUseEver);
 
-            if (ImGui.Button("Fire Projectile (Facing Dir)"))
+        if (!ImGui.Begin("Combat Sandbox"))
+        {
+            ImGui.End();
+            return;
+        }
+
+        ImGui.Text("Local Player Testing:");
+        if (ImGui.Button("Fire Projectile (Facing Dir)", new System.Numerics.Vector2(250, 30)))
+        {
+            var ecs = Game1.Instance.EcsWorld;
+            var playerQuery = ecs.QueryBuilder<Position, FacingDirection>().With<LocalPlayerTag>().Build();
+
+            playerQuery.Each((ref Position pos, ref FacingDirection dir) =>
             {
-                Game1.Instance.EcsWorld.QueryBuilder<Position, FacingDirection>().With<LocalPlayerTag>().Build().Each((ref Position pos, ref FacingDirection facing) =>
+                ecs.Entity().Set(new ProjectileSpawnRequest
                 {
-                    Game1.Instance.EcsWorld.Entity().Set(new ProjectileSpawnRequest
-                    {
-                        StartX = pos.X + (15f * facing.Value),
-                        StartY = pos.Y - 10f,
-                        VelocityX = 500f * facing.Value,
-                        VelocityY = 0f
-                    });
+                    StartX = pos.X + (dir.Value * 16f),
+                    StartY = pos.Y,
+                    VelocityX = dir.Value * 400f,
+                    VelocityY = 0f
                 });
-            }
+            });
         }
         ImGui.End();
     }
