@@ -9,7 +9,8 @@ namespace MyGame.Engine.StandardModules.Physics2D;
 
 public static class InteractionSystem
 {
-    public static void Register(World world)
+    // ARCHITECTURE FIX: Fully qualified name prevents Aether/Flecs 'World' ambiguity
+    public static void Register(Flecs.NET.Core.World world)
     {
         var portalQuery = world.QueryBuilder<Position, PortalComponent>().Build();
         var seatQuery = world.QueryBuilder<Position>().With<PilotSeatComponent>().Build();
@@ -25,7 +26,6 @@ public static class InteractionSystem
                 {
                     var helm = player.Get<HelmControl>();
 
-                    // ARCHITECTURE FIX: Uses ControlledVehicle directly. No pointers involved.
                     if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.IsAlive())
                     {
                         helm.ControlledVehicle.Remove<LocalInput>();
@@ -37,17 +37,26 @@ public static class InteractionSystem
                     return;
                 }
 
-                // Cache position locally to prevent C# "ref struct inside closure" lambda errors
                 float px = playerPos.X;
                 float py = playerPos.Y;
 
                 bool foundPortal = false;
                 string destDimension = string.Empty;
-                float closestPortalDist = 24f;
+                float closestPortalDist = 28f;
 
-                portalQuery.Each((ref Position pPos, ref PortalComponent pComp) =>
+                portalQuery.Each((Entity portalEnt, ref Position pPos, ref PortalComponent pComp) =>
                 {
-                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(pPos.X, pPos.Y));
+                    float targetX = pPos.X;
+                    float targetY = pPos.Y;
+
+                    if (portalEnt.Has<ShipVehicleComponent>())
+                    {
+                        var shipComp = portalEnt.Get<ShipVehicleComponent>();
+                        targetX += shipComp.DoorLocalOffset.X;
+                        targetY += shipComp.DoorLocalOffset.Y;
+                    }
+
+                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(targetX, targetY));
                     if (dist < closestPortalDist)
                     {
                         destDimension = pComp.DestinationDimension;
@@ -69,7 +78,7 @@ public static class InteractionSystem
                 }
 
                 bool foundSeat = false;
-                float closestSeatDist = 24f;
+                float closestSeatDist = 28f;
 
                 seatQuery.Each((ref Position sPos) =>
                 {
@@ -83,7 +92,6 @@ public static class InteractionSystem
 
                 if (foundSeat)
                 {
-                    // ARCHITECTURE FIX: Uses the safe 'world' parameter, NOT 'player.World()'
                     Entity vehicle = world.Lookup("ActiveSpaceshipExterior");
 
                     if (vehicle.Id == 0 || !vehicle.IsAlive())

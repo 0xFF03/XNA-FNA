@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Flecs.NET.Core;
 using MyGame.Engine.Core;
+using MyGame.Game.Core;
 
 namespace MyGame.Game.Logic;
 
@@ -26,7 +28,6 @@ public static class SaveManager
         return collection.FindAll().OrderByDescending(x => x.LastSaved).FirstOrDefault();
     }
 
-    // Returns exactly 10 slots for the UI to read safely
     public static SaveProfile?[] GetDisplayProfiles()
     {
         var db = Game1.Instance.LocalDatabase;
@@ -51,7 +52,8 @@ public static class SaveManager
             CurrentMapPath = startingMap,
             CurrentDimension = startingDimension,
             LastSaved = DateTime.Now,
-            TotalPlayTimeSeconds = 0
+            TotalPlayTimeSeconds = 0,
+            PersistentWorldMarks = new Dictionary<string, int>()
         };
 
         CurrentProfile = newSave;
@@ -79,6 +81,19 @@ public static class SaveManager
 
         CurrentProfile.TotalPlayTimeSeconds += addedPlaytime;
 
+        var savedMarks = new Dictionary<string, int>();
+
+        // ARCHITECTURE FIX: Synchronously collect all modified interaction marks inside the active ECS universe.
+        // Other player entities are naturally excluded from serialization.
+        var marksQuery = Game1.Instance.EcsWorld.QueryBuilder<WorldMark>().Build();
+        marksQuery.Each((ref WorldMark mark) =>
+        {
+            if (!string.IsNullOrEmpty(mark.UniqueMarkId))
+            {
+                savedMarks[mark.UniqueMarkId] = mark.InteractionState;
+            }
+        });
+
         var newSave = new SaveProfile
         {
             Id = slotId,
@@ -90,7 +105,8 @@ public static class SaveManager
             CurrentHealth = currentHp,
             CurrentDimension = currentDimension,
             TotalPlayTimeSeconds = CurrentProfile.TotalPlayTimeSeconds,
-            LastSaved = DateTime.Now
+            LastSaved = DateTime.Now,
+            PersistentWorldMarks = savedMarks
         };
 
         CurrentProfile = newSave;
@@ -100,7 +116,7 @@ public static class SaveManager
         var collection = db.GetCollection<SaveProfile>(CollectionName);
         collection.Upsert(newSave);
 
-        EngineLogger.Log($"Game manually saved synchronously to slot {slotId}", "SYSTEM");
+        EngineLogger.Log($"Game manually saved synchronously to slot {slotId}. Saved {savedMarks.Count} structural world modifications.", "SYSTEM");
     }
 
     public static void PerformAutoSave(string currentMap, float playerX, float playerY, int currentHp, string currentDimension, float addedPlaytime)
@@ -114,7 +130,6 @@ public static class SaveManager
         int oldestSlot = 1;
         DateTime oldestTime = DateTime.MaxValue;
 
-        // Auto-Saves only rotate across Slots 1, 2, and 3
         for (int i = 1; i <= 3; i++)
         {
             var p = collection.FindById(i);
@@ -130,6 +145,16 @@ public static class SaveManager
             }
         }
 
+        var savedMarks = new Dictionary<string, int>();
+        var marksQuery = Game1.Instance.EcsWorld.QueryBuilder<WorldMark>().Build();
+        marksQuery.Each((ref WorldMark mark) =>
+        {
+            if (!string.IsNullOrEmpty(mark.UniqueMarkId))
+            {
+                savedMarks[mark.UniqueMarkId] = mark.InteractionState;
+            }
+        });
+
         var autoSave = new SaveProfile
         {
             Id = oldestSlot,
@@ -141,7 +166,8 @@ public static class SaveManager
             CurrentHealth = currentHp,
             CurrentDimension = currentDimension,
             TotalPlayTimeSeconds = CurrentProfile.TotalPlayTimeSeconds,
-            LastSaved = DateTime.Now
+            LastSaved = DateTime.Now,
+            PersistentWorldMarks = savedMarks
         };
 
         collection.Upsert(autoSave);

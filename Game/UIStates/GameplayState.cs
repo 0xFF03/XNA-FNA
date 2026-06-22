@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text.Json;
+using System.Linq;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -61,7 +63,6 @@ public class GameplayState : GameState
 
         _localPlayerQuery = ecsWorld.QueryBuilder<Position, PreviousPosition, PhysicsDimension, BaseCombatComponents.Health>().With<LocalPlayerTag>().Build();
 
-        // ARCHITECTURE FIX: Hooked up explicit Slot saving
         pauseMenu.OnSaveSlotRequested += HandleManualSave;
         pauseMenu.OnLoadSlotRequested += HandleLoadRequest;
 
@@ -73,6 +74,8 @@ public class GameplayState : GameState
             SteamManager.CurrentLobby.Value.SetData("GameState", "InGame");
             NetworkRouter.OnClientLoadedMap += HandleJoineeLoadedMap;
         }
+
+        PlaceholderVehicleRenderer.Initialize(ecsWorld);
 
         LoadMapAndPhysics();
     }
@@ -106,11 +109,11 @@ public class GameplayState : GameState
     private void LoadMapAndPhysics()
     {
         var profile = SaveManager.CurrentProfile!;
-        _loadedRoom = Engine.Platform.MapLoader.LoadSingleLevel(profile.CurrentMapPath);
+        _loadedRoom = Engine.Platform.MapLoader.LoadSingleLevel(profile.CurrentMapPath, profile.CurrentDimension);
         ecsWorld.Entity("GlobalMapData").Set(new MapComponents.MapInstance { Data = _loadedRoom });
 
         var macroGravity = _loadedRoom.IsTopDown ? new AetherVector2(0f, 0f) : new AetherVector2(0f, 20f);
-        var macroWorld = PhysicsWorldManager.CreateWorld("MacroSpace", macroGravity);
+        var macroWorld = PhysicsWorldManager.CreateWorld(profile.CurrentDimension, macroGravity);
 
         var levelStaticBody = macroWorld.CreateBody(AetherVector2.Zero, 0f, nkast.Aether.Physics2D.Dynamics.BodyType.Static);
         foreach (var col in _loadedRoom.Collisions)
@@ -124,6 +127,8 @@ public class GameplayState : GameState
             fixture.Friction = 0.3f;
             fixture.CollisionCategories = PhysicsLayers.Environment;
         }
+
+        SpawnMapEntities(profile.CurrentDimension);
 
         float spawnX = profile.CheckpointX != -1 ? profile.CheckpointX : _loadedRoom.SpawnPoint.X;
         float spawnY = profile.CheckpointY != -1 ? profile.CheckpointY : _loadedRoom.SpawnPoint.Y;
@@ -159,6 +164,105 @@ public class GameplayState : GameState
                 SteamNetworking.SendP2PPacket(SteamManager.KnownHostId.Value, readySignal, 1, 2, P2PSend.Reliable);
             }
         }
+    }
+
+    private void SpawnMapEntities(string activeDimension)
+    {
+        foreach (var interactable in _loadedRoom.Interactables)
+        {
+            if (interactable.Identifier == "ShipExterior")
+            {
+                string dest = "Ship_Interior";
+                Vector2 localDoorOffset = Vector2.Zero;
+
+                if (interactable.FieldInstances != null)
+                {
+                    var field = interactable.FieldInstances.FirstOrDefault(f => f.Identifier.Equals("TargetDimension", StringComparison.OrdinalIgnoreCase));
+                    if (field != null && field.Value != null)
+                    {
+                        dest = field.Value is JsonElement je && je.ValueKind == JsonValueKind.String ? je.GetString()! : field.Value.ToString()!;
+                    }
+
+                    var offsetField = interactable.FieldInstances.FirstOrDefault(f => f.Identifier.Equals("DoorOffset", StringComparison.OrdinalIgnoreCase));
+                    if (offsetField != null && offsetField.Value != null && offsetField.Value is JsonElement offsetJe && offsetJe.ValueKind == JsonValueKind.Object)
+                    {
+                        if (offsetJe.TryGetProperty("cx", out JsonElement cxProp) && offsetJe.TryGetProperty("cy", out JsonElement cyProp))
+                        {
+                            float absoluteDoorX = (cxProp.GetSingle() * 16f) + 8f;
+                            float absoluteDoorY = (cyProp.GetSingle() * 16f) + 8f;
+
+                            localDoorOffset = new Vector2(absoluteDoorX - interactable.Px[0], absoluteDoorY - interactable.Px[1]);
+                        }
+                    }
+                }
+
+                var vehicle = ecsWorld.Entity("ActiveSpaceshipExterior")
+                    .Add<TopDownTag>()
+                    .Add<MatchEntityTag>()
+                    .Add<InteractableTag>()
+                    .Set(new Position { X = interactable.Px[0], Y = interactable.Px[1] })
+                    .Set(new PreviousPosition { X = interactable.Px[0], Y = interactable.Px[1] })
+                    .Set(new Velocity { X = 0, Y = 0 })
+                    .Set(new MovementCapabilities { MoveSpeed = 12f, JumpForce = 0 })
+                    .Set(new PortalComponent { DestinationDimension = dest })
+                    .Set(new ShipVehicleComponent { TextureName = "Textures/ShipExterior.png", DoorLocalOffset = localDoorOffset })
+                    .Set(new PhysicsDimension { Name = activeDimension });
+
+                var physicsWorld = PhysicsWorldManager.GetWorld(activeDimension);
+                var initialPos = new AetherVector2(interactable.Px[0] / PhysicsSettings.PixelsPerMeter, interactable.Px[1] / PhysicsSettings.PixelsPerMeter);
+                var aetherBody = physicsWorld.CreateCircle(16f / PhysicsSettings.PixelsPerMeter, 1f, initialPos, nkast.Aether.Physics2D.Dynamics.BodyType.Dynamic);
+                aetherBody.FixedRotation = true;
+
+                vehicle.Set(new PhysicsComponents.PhysicsBody { Value = aetherBody });
+                continue;
+            }
+
+            var entity = ecsWorld.Entity()
+                .Add<MatchEntityTag>()
+                .Add<InteractableTag>()
+                .Set(new Position { X = interactable.Px[0], Y = interactable.Px[1] });
+
+            if (interactable.Identifier == "AirlockDoor")
+            {
+                string dest = "MacroSpace";
+                if (interactable.FieldInstances != null && interactable.FieldInstances.Length > 0)
+                {
+                    var field = interactable.FieldInstances.FirstOrDefault(f => f.Identifier.Equals("TargetDimension", StringComparison.OrdinalIgnoreCase));
+                    if (field != null && field.Value != null)
+                    {
+                        dest = field.Value is JsonElement je && je.ValueKind == JsonValueKind.String ? je.GetString()! : field.Value.ToString()!;
+                    }
+                }
+                entity.Set(new PortalComponent { DestinationDimension = dest });
+            }
+            else if (interactable.Identifier == "PilotSeat")
+            {
+                entity.Add<PilotSeatComponent>();
+            }
+        }
+    }
+
+    private void HotReloadVisualMap(string targetDimension)
+    {
+        AssetManager.UnloadLevelAssets();
+
+        var profile = SaveManager.CurrentProfile!;
+        _loadedRoom = Engine.Platform.MapLoader.LoadSingleLevel(profile.CurrentMapPath, targetDimension);
+        ecsWorld.Entity("GlobalMapData").Set(new MapComponents.MapInstance { Data = _loadedRoom });
+
+        _cleanupList.Clear();
+        using var cleanupQuery = ecsWorld.QueryBuilder().With<InteractableTag>().Build();
+        cleanupQuery.Each((Entity e) => { _cleanupList.Add(e); });
+
+        for (int i = 0; i < _cleanupList.Count; i++)
+        {
+            if (_cleanupList[i].IsAlive()) _cleanupList[i].Destruct();
+        }
+        _cleanupList.Clear();
+
+        SpawnMapEntities(targetDimension);
+
+        EngineLogger.Log($"Graphics Renderer successfully hot-swapped to dimension visual assets: {targetDimension}", "SYSTEM");
     }
 
     private void HandleJoineeLoadedMap(SteamId joineeId)
@@ -210,7 +314,6 @@ public class GameplayState : GameState
         {
             _sessionPlaytimeAccumulator += deltaTime;
 
-            // ARCHITECTURE FIX: 5 Minute Auto-Save Loop for Hosts
             if (isHostOrigin)
             {
                 _autoSaveTimer += deltaTime;
@@ -223,6 +326,16 @@ public class GameplayState : GameState
 
             PhysicsWorldManager.StepAll(deltaTime);
             ecsWorld.Progress(deltaTime);
+
+            _localPlayerQuery.Each((Entity player, ref Position pos, ref PreviousPosition prev, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+            {
+                var profile = SaveManager.CurrentProfile!;
+                if (profile.CurrentDimension != dim.Name)
+                {
+                    profile.CurrentDimension = dim.Name;
+                    HotReloadVisualMap(dim.Name);
+                }
+            });
         }
     }
 
@@ -231,10 +344,30 @@ public class GameplayState : GameState
         _drawAlpha = alpha;
         _drawCamera = camera;
 
-        _localPlayerQuery.Each((ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+        _localPlayerQuery.Each((Entity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
         {
-            float lerpX = MathHelper.Lerp(prevPos.X, pos.X, _drawAlpha);
-            float lerpY = MathHelper.Lerp(prevPos.Y, pos.Y, _drawAlpha);
+            float targetX = pos.X;
+            float targetY = pos.Y;
+            float prevTargetX = prevPos.X;
+            float prevTargetY = prevPos.Y;
+
+            // ARCHITECTURE FIX: Detach camera from player and lock onto the exterior ship when piloting
+            if (player.Has<HelmControl>())
+            {
+                var helm = player.Get<HelmControl>();
+                if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.IsAlive() && helm.ControlledVehicle.Has<Position>())
+                {
+                    var vPos = helm.ControlledVehicle.Get<Position>();
+                    var vPrev = helm.ControlledVehicle.Has<PreviousPosition>() ? helm.ControlledVehicle.Get<PreviousPosition>() : new PreviousPosition { X = vPos.X, Y = vPos.Y };
+                    targetX = vPos.X;
+                    targetY = vPos.Y;
+                    prevTargetX = vPrev.X;
+                    prevTargetY = vPrev.Y;
+                }
+            }
+
+            float lerpX = MathHelper.Lerp(prevTargetX, targetX, _drawAlpha);
+            float lerpY = MathHelper.Lerp(prevTargetY, targetY, _drawAlpha);
             _drawCamera.Position = new Vector2((int)lerpX, (int)lerpY);
         });
 
@@ -244,6 +377,7 @@ public class GameplayState : GameState
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, null, null, null, camera.GetViewMatrix(VirtualWidth, VirtualHeight));
 
         TileMapRenderer.Draw(camera, VirtualWidth, VirtualHeight);
+        PlaceholderVehicleRenderer.Draw(spriteBatch, alpha);
         PlaceholderPlayerRenderer.Draw(spriteBatch, alpha);
         PlaceholderProjectileRenderer.Draw(spriteBatch, alpha);
 

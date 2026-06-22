@@ -21,14 +21,13 @@ public static class WorldSyncSystem
 
         var snapshots = new List<EntitySnapshot>();
 
-        // ARCHITECTURE FIX: Query explicitly demands the PhysicsDimension
+        // Gather all live dynamic characters
         var syncQuery = world.QueryBuilder<Position, NetworkId, NetworkOwner, PhysicsDimension>().Build();
-
         syncQuery.Each((Entity e, ref Position pos, ref NetworkId netId, ref NetworkOwner owner, ref PhysicsDimension dimension) =>
         {
             if (owner.Value == newPlayerId) return;
 
-            byte type = 0;
+            byte type = 0; // 0 = Player Character Proxy
             int hp = e.Has<BaseCombatComponents.Health>() ? e.Get<BaseCombatComponents.Health>().Current : 100;
             int dir = e.Has<FacingDirection>() ? e.Get<FacingDirection>().Value : 1;
 
@@ -41,8 +40,29 @@ public static class WorldSyncSystem
                 Health = hp,
                 FacingDirection = dir,
                 OwnerSteamId = owner.Value.Value,
-                TargetPhysicsWorld = dimension.Name // ARCHITECTURE FIX: Synchronize the dimension across the network
+                TargetPhysicsWorld = dimension.Name
             });
+        });
+
+        // ARCHITECTURE FIX: Historical Catch-Up Sync processing loop.
+        // Gathers all permanent world marks left by past interactions and streams them to late-joiners.
+        var marksQuery = world.QueryBuilder<WorldMark>().Build();
+        marksQuery.Each((Entity e, ref WorldMark mark) =>
+        {
+            if (mark.InteractionState != 0) // Only synchronize altered states
+            {
+                snapshots.Add(new EntitySnapshot
+                {
+                    NetworkId = e.Id,
+                    EntityType = 255, // 255 reserved explicitly for structural World Marks
+                    X = mark.InteractionState, // Store state directly inside numeric payload slots
+                    Y = 0,
+                    Health = 0,
+                    FacingDirection = 0,
+                    OwnerSteamId = 0,
+                    TargetPhysicsWorld = mark.UniqueMarkId // Store target marker label
+                });
+            }
         });
 
         if (snapshots.Count == 0) return;
@@ -58,11 +78,8 @@ public static class WorldSyncSystem
         _bufferWriter.Advance(1);
 
         MemoryPackSerializer.Serialize(_bufferWriter, packet);
-        int packetLength = _bufferWriter.WrittenCount;
-
-        if (_reusableBuffer.Length < packetLength) Array.Resize(ref _reusableBuffer, packetLength * 2);
         _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-        SteamNetworking.SendP2PPacket(newPlayerId, _reusableBuffer, packetLength, 1, P2PSend.Reliable);
+        SteamNetworking.SendP2PPacket(newPlayerId, _reusableBuffer, _bufferWriter.WrittenCount, 1, P2PSend.Reliable);
     }
 }

@@ -8,7 +8,8 @@ namespace MyGame.Engine.StandardModules.Physics2D;
 
 public static class MovementControllers
 {
-    public static void Register(World world)
+    // ARCHITECTURE FIX: Securely fully qualified to eliminate compiler ambiguity
+    public static void Register(Flecs.NET.Core.World world)
     {
         world.System<LocalInput, FacingDirection>("InputGatheringSystem")
             .Kind(Ecs.PreUpdate)
@@ -27,7 +28,6 @@ public static class MovementControllers
                 {
                     var helm = e.Get<HelmControl>();
 
-                    // ARCHITECTURE FIX: Use ControlledVehicle directly. e.World() pointer removed.
                     if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.IsAlive())
                     {
                         helm.ControlledVehicle.Set(new LocalInput { AxisX = dx, AxisY = dy, JumpJustPressed = InputManager.ConsumeAction(GameActions.Jump) });

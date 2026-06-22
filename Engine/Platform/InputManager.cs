@@ -31,7 +31,7 @@ public static class InputManager
         { GameActions.MoveUp, Keys.W }, { GameActions.MoveDown, Keys.S },
         { GameActions.MoveLeft, Keys.A }, { GameActions.MoveRight, Keys.D },
         { GameActions.Jump, Keys.Space }, { GameActions.Pause, Keys.Escape },
-        { GameActions.Interact, Keys.E }
+        { GameActions.Interact, Keys.F } // Changed from Keys.E to Keys.F
     };
 
     public static void Update()
@@ -40,8 +40,6 @@ public static class InputManager
         currentKeyboard = Keyboard.GetState();
         previousMouse = currentMouse;
         currentMouse = Mouse.GetState();
-
-        // ARCHITECTURE FIX: Destructive clears removed from hardware polling loop.
 
         if (_blockInputUntilRelease && currentMouse.LeftButton == ButtonState.Released)
         {
@@ -69,7 +67,6 @@ public static class InputManager
         }
     }
 
-    // ARCHITECTURE FIX: Called strictly by Game1.cs after the fixed 60hz step finishes
     public static void PostLogicUpdate()
     {
         _actionBuffer.Clear();

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MyGame.Game.Logic;
 
@@ -20,4 +21,8 @@ public class SaveProfile
 
 	// Meta Progression
 	public double TotalPlayTimeSeconds { get; set; } = 0;
+
+	// ARCHITECTURE FIX: Stores permanent interaction world modifications.
+	// Maps uniquely defined LDtk entity strings straight to their interactive lifecycle states.
+	public Dictionary<string, int> PersistentWorldMarks { get; set; } = new();
 }

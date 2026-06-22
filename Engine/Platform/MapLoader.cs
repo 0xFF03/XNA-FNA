@@ -45,19 +45,16 @@ public static class MapLoader
 
         LdtkLevel? foundLevel = null;
 
-        // ARCHITECTURE FIX: Scans Worlds first to support LDtk 1.5.3 Multi-World projects
         if (targetRoot.Worlds != null && targetRoot.Worlds.Length > 0)
         {
             foreach (var w in targetRoot.Worlds)
             {
-                // If the user named the World "MacroSpace" but left the level inside named "Level_0"
                 if (w.Identifier.Equals(levelIdentifier, StringComparison.OrdinalIgnoreCase) && w.Levels.Length > 0)
                 {
                     foundLevel = w.Levels[0];
                     break;
                 }
 
-                // Or if they named the internal level "MacroSpace"
                 var l = w.Levels.FirstOrDefault(x => x.Identifier.Equals(levelIdentifier, StringComparison.OrdinalIgnoreCase));
                 if (l != null)
                 {
@@ -67,7 +64,6 @@ public static class MapLoader
             }
         }
 
-        // Fallback to standard root levels
         if (foundLevel == null && targetRoot.Levels != null && targetRoot.Levels.Length > 0)
         {
             foundLevel = targetRoot.Levels.FirstOrDefault(l => l.Identifier.Equals(levelIdentifier, StringComparison.OrdinalIgnoreCase));
@@ -81,8 +77,6 @@ public static class MapLoader
         else
         {
             levelData = targetRoot.Levels?.FirstOrDefault() ?? targetRoot.Worlds?.FirstOrDefault()?.Levels?.FirstOrDefault() ?? throw new Exception("LDtk file has no levels!");
-
-            // Provides visual feedback in the F1 console if you misspell a dimension name
             EngineLogger.Log($"Dimension '{levelIdentifier}' not found in LDtk. Falling back to '{levelData.Identifier}'. Check your spelling in LDtk!", "WARNING");
         }
 
@@ -117,33 +111,43 @@ public static class MapLoader
             var layer = levelData.LayerInstances[i];
 
             if (layer.Type == "IntGrid") ParseCollisions(layer, tempCollisions);
-            if (layer.Type == "Entities") ParseEntities(layer, roomData);
+
+            // ARCHITECTURE FIX: Parse entities, then FORCE the loop to skip the tile-rendering logic below
+            if (layer.Type == "Entities")
+            {
+                ParseEntities(layer, roomData);
+                continue;
+            }
 
             if (!string.IsNullOrEmpty(layer.TilesetRelPath))
             {
-                Texture2D layerTexture = AssetManager.GetTexture($"Textures/{Path.GetFileName(layer.TilesetRelPath)}", true);
                 var tiles = (layer.AutoLayerTiles != null && layer.AutoLayerTiles.Length > 0) ? layer.AutoLayerTiles : (layer.GridTiles ?? Array.Empty<LdtkTileInstance>());
 
-                foreach (var t in tiles)
+                if (tiles.Length > 0)
                 {
-                    SpriteEffects effect = SpriteEffects.None;
-                    if (t.F == 1 || t.F == 3) effect |= SpriteEffects.FlipHorizontally;
-                    if (t.F == 2 || t.F == 3) effect |= SpriteEffects.FlipVertically;
+                    Texture2D layerTexture = AssetManager.GetTexture($"Textures/{Path.GetFileName(layer.TilesetRelPath)}", true);
 
-                    var tileData = new TileRenderData {
-                        Texture = layerTexture,
-                        Source = new Rectangle(t.Src[0], t.Src[1], layer.GridSize, layer.GridSize),
-                        Position = new Vector2(t.Px[0], t.Px[1]),
-                        Effects = effect
-                    };
-
-                    Point chunkKey = new Point(t.Px[0] / LevelData.ChunkSize, t.Px[1] / LevelData.ChunkSize);
-                    if (!roomData.TileChunks.TryGetValue(chunkKey, out var chunkList))
+                    foreach (var t in tiles)
                     {
-                        chunkList = new List<TileRenderData>();
-                        roomData.TileChunks[chunkKey] = chunkList;
+                        SpriteEffects effect = SpriteEffects.None;
+                        if (t.F == 1 || t.F == 3) effect |= SpriteEffects.FlipHorizontally;
+                        if (t.F == 2 || t.F == 3) effect |= SpriteEffects.FlipVertically;
+
+                        var tileData = new TileRenderData {
+                            Texture = layerTexture,
+                            Source = new Rectangle(t.Src[0], t.Src[1], layer.GridSize, layer.GridSize),
+                            Position = new Vector2(t.Px[0], t.Px[1]),
+                            Effects = effect
+                        };
+
+                        Point chunkKey = new Point(t.Px[0] / LevelData.ChunkSize, t.Px[1] / LevelData.ChunkSize);
+                        if (!roomData.TileChunks.TryGetValue(chunkKey, out var chunkList))
+                        {
+                            chunkList = new List<TileRenderData>();
+                            roomData.TileChunks[chunkKey] = chunkList;
+                        }
+                        chunkList.Add(tileData);
                     }
-                    chunkList.Add(tileData);
                 }
             }
         }
@@ -211,7 +215,7 @@ public static class MapLoader
                 float spawnY = (float)entity.Px[1];
                 roomData.SpawnPoint = new Vector2(spawnX, spawnY);
             }
-            else if (entity.Identifier == "AirlockDoor" || entity.Identifier == "PilotSeat")
+            else if (entity.Identifier == "AirlockDoor" || entity.Identifier == "PilotSeat" || entity.Identifier == "ShipExterior")
             {
                 roomData.Interactables.Add(entity);
             }

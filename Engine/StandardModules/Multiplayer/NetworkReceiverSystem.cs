@@ -53,7 +53,10 @@ public static class NetworkReceiverSystem
         int spawnedCount = 0;
         foreach (var entityData in p.Entities)
         {
-            if (NetworkRegistry.GetEntity(entityData.NetworkId) != null) continue;
+            Entity existing = NetworkRegistry.GetEntity(entityData.NetworkId);
+
+            // ARCHITECTURE FIX: Replaced != null with safe ID and Liveness check
+            if (existing.Id != 0 && existing.IsAlive()) continue;
 
             if (entityData.EntityType == 0)
             {
@@ -80,19 +83,20 @@ public static class NetworkReceiverSystem
         var payloadSpan = new ReadOnlySpan<byte>(packet.Data, 1, packet.Data.Length - 1);
         var p = MemoryPackSerializer.Deserialize<DistributedEventPacket>(payloadSpan);
 
-        Entity? targetEntity = NetworkRegistry.GetEntity(p.TargetNetworkId);
-        if (targetEntity.HasValue && targetEntity.Value.IsAlive())
+        // ARCHITECTURE FIX: Removed nullable struct wrapper
+        Entity targetEntity = NetworkRegistry.GetEntity(p.TargetNetworkId);
+
+        if (targetEntity.Id != 0 && targetEntity.IsAlive())
         {
-            Entity entity = targetEntity.Value;
             switch ((GameEventType)p.EventType)
             {
                 case GameEventType.Despawn:
-                    entity.Destruct();
+                    targetEntity.Destruct();
                     break;
                 case GameEventType.Damage:
-                    if (entity.Has<BaseCombatComponents.Health>())
+                    if (targetEntity.Has<BaseCombatComponents.Health>())
                     {
-                        ref var health = ref entity.GetMut<BaseCombatComponents.Health>();
+                        ref var health = ref targetEntity.GetMut<BaseCombatComponents.Health>();
                         health.Current -= p.IntPayload;
                     }
                     break;
@@ -108,34 +112,35 @@ public static class NetworkReceiverSystem
         var p = MemoryPackSerializer.Deserialize<PlayerTransformPacket>(payloadSpan);
 
         if (p.EntityNetworkSequenceId == 0) return;
-        Entity? remoteShadow = NetworkRegistry.GetEntity(p.EntityNetworkSequenceId);
 
-        if (!remoteShadow.HasValue || !remoteShadow.Value.IsAlive())
+        // ARCHITECTURE FIX: Removed nullable struct wrapper
+        Entity remoteShadow = NetworkRegistry.GetEntity(p.EntityNetworkSequenceId);
+
+        if (remoteShadow.Id == 0 || !remoteShadow.IsAlive())
         {
            remoteShadow = PlayerFactory.CreateRemote(world, $"p_{p.EntityNetworkSequenceId}", p, packet.SteamId, p.TargetPhysicsWorld);
         }
 
-        if (remoteShadow is { } entity && entity.IsAlive())
+        if (remoteShadow.Id != 0 && remoteShadow.IsAlive())
         {
-            if (!entity.Has<NetworkSequence>()) entity.Add<NetworkSequence>();
+            if (!remoteShadow.Has<NetworkSequence>()) remoteShadow.Add<NetworkSequence>();
 
-            ref var currentSequence = ref entity.GetMut<NetworkSequence>();
+            ref var currentSequence = ref remoteShadow.GetMut<NetworkSequence>();
             if (p.SequenceNumber < currentSequence.LatestSequence) return;
 
             currentSequence.LatestSequence = p.SequenceNumber;
             currentSequence.TimeSinceLastPacket = 0f;
 
-            entity.Set(new TargetPosition { X = p.X, Y = p.Y });
-            entity.Set(new Velocity { X = p.Vx, Y = p.Vy });
-            entity.Set(new FacingDirection { Value = p.FacingDirection });
+            remoteShadow.Set(new TargetPosition { X = p.X, Y = p.Y });
+            remoteShadow.Set(new Velocity { X = p.Vx, Y = p.Vy });
+            remoteShadow.Set(new FacingDirection { Value = p.FacingDirection });
 
-            // ARCHITECTURE FIX: Dimension Transfer check for network shadows
-            if (entity.Has<PhysicsDimension>())
+            if (remoteShadow.Has<PhysicsDimension>())
             {
-                var currentDim = entity.Get<PhysicsDimension>();
+                var currentDim = remoteShadow.Get<PhysicsDimension>();
                 if (currentDim.Name != p.TargetPhysicsWorld)
                 {
-                    entity.Set(new DimensionTransferRequest
+                    remoteShadow.Set(new DimensionTransferRequest
                     {
                         TargetDimension = p.TargetPhysicsWorld,
                         SpawnX = p.X,
@@ -153,7 +158,10 @@ public static class NetworkReceiverSystem
             var payloadSpan = new ReadOnlySpan<byte>(packet.Data, 1, packet.Data.Length - 1);
             var p = MemoryPackSerializer.Deserialize<PlayerSpawnPacket>(payloadSpan);
 
-            if (p.EntityNetworkSequenceId != 0 && NetworkRegistry.GetEntity(p.EntityNetworkSequenceId) == null)
+            Entity existing = NetworkRegistry.GetEntity(p.EntityNetworkSequenceId);
+
+            // ARCHITECTURE FIX: Replaced == null with proper struct state check
+            if (p.EntityNetworkSequenceId != 0 && (existing.Id == 0 || !existing.IsAlive()))
             {
                 var mockTransform = new PlayerTransformPacket { X = p.StartX, Y = p.StartY, EntityNetworkSequenceId = p.EntityNetworkSequenceId };
                 PlayerFactory.CreateRemote(world, $"p_{p.EntityNetworkSequenceId}", mockTransform, packet.SteamId, p.TargetPhysicsWorld);
