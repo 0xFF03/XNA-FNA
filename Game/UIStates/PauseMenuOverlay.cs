@@ -1,73 +1,107 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System;
+using System.Linq;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MyGame.Engine.States;
-using MyGame.Engine.UI;
 using MyGame.Engine.Core;
-using MyGame.Engine.Networking;
-using MyGame.Engine.Input;
+using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.UI;
+using MyGame.Engine.StandardModules.Multiplayer;
 using Steamworks;
 using FontStashSharp;
+using MyGame.Game.Logic;
 
 namespace MyGame.Game.UIStates;
+
+public enum PauseMenuMode { Main, Session, Save, Load }
 
 public class PauseMenuOverlay
 {
     public bool IsPaused { get; private set; } = false;
-    private int previousMemberCount = 0;
 
     private readonly Game1 game;
     private readonly StateManager stateManager;
-    private readonly bool isHost;
+    private readonly bool isHostOrigin;
     private readonly byte[] signalBuffer = new byte[1];
 
-    private readonly Button continueButton;
-    private readonly Button inviteButton;
-    private readonly Button closeLobbyButton;
+    private PauseMenuMode currentMode = PauseMenuMode.Main;
+
+    // Main Buttons
+    private readonly Button unpauseButton;
+    private readonly Button saveButton;
+    private readonly Button loadButton;
+    private readonly Button hostSessionButton;
+    private readonly Button sessionMenuButton;
+    private readonly Button optionsButton;
     private readonly Button exitButton;
 
+    // Session Sub-Menu Buttons
+    private readonly Button sessionInviteButton;
+    private readonly Button sessionCloseLobbyButton;
+    private readonly Button sessionBackButton;
     private readonly FriendsListOverlay friendsOverlay;
-    private string networkStatusText = "Unknown Status";
 
-    public PauseMenuOverlay(Game1 game, StateManager stateManager, bool isHost)
+    // Slot Browser Buttons
+    private readonly Button[] slotButtons = new Button[10];
+    private readonly Button slotBackButton;
+
+    private string pauseStatusText = "Game Paused";
+
+    public event Action<int>? OnSaveSlotRequested;
+    public event Action<int>? OnLoadSlotRequested;
+
+    public PauseMenuOverlay(Game1 game, StateManager stateManager, bool isHostOrigin)
     {
         this.game = game;
         this.stateManager = stateManager;
-        this.isHost = isHost;
+        this.isHostOrigin = isHostOrigin;
 
         friendsOverlay = new FriendsListOverlay(game);
         Texture2D uiTex = AssetManager.WhitePixel;
 
-        continueButton = new Button(uiTex, Rectangle.Empty) { Text = "Continue", NormalColor = Color.DarkSlateGray, HoverColor = Color.SlateGray };
-        inviteButton = new Button(uiTex, Rectangle.Empty) { Text = "Invite Friends", NormalColor = Color.DarkGreen, HoverColor = Color.Green };
-        closeLobbyButton = new Button(uiTex, Rectangle.Empty) { Text = "Close Lobby (Play Solo)", NormalColor = Color.Firebrick, HoverColor = Color.IndianRed };
-        exitButton = new Button(uiTex, Rectangle.Empty) { Text = "Quit to Main Menu", NormalColor = Color.DarkRed, HoverColor = Color.Red };
+        unpauseButton = new Button(uiTex, Rectangle.Empty) { Text = "Unpause", NormalColor = Color.DarkSlateGray, HoverColor = Color.SlateGray };
+        saveButton = new Button(uiTex, Rectangle.Empty) { Text = "Save", NormalColor = Color.DarkCyan, HoverColor = Color.Cyan };
+        loadButton = new Button(uiTex, Rectangle.Empty) { Text = "Load", NormalColor = Color.DarkSlateBlue, HoverColor = Color.SlateBlue };
 
-        NetworkRouter.OnPauseStateChanged += HandlePauseState;
+        hostSessionButton = new Button(uiTex, Rectangle.Empty) { Text = "Host Session", NormalColor = Color.DarkGoldenrod, HoverColor = Color.Goldenrod };
+        sessionMenuButton = new Button(uiTex, Rectangle.Empty) { Text = "Session Menu", NormalColor = Color.DarkGoldenrod, HoverColor = Color.Goldenrod };
+        optionsButton = new Button(uiTex, Rectangle.Empty) { Text = "Options", NormalColor = Color.DarkSlateBlue, HoverColor = Color.SlateBlue };
+        exitButton = new Button(uiTex, Rectangle.Empty) { Text = "Exit to Main Menu", NormalColor = Color.DarkRed, HoverColor = Color.Red };
 
-        continueButton.OnClick += () => { TransmitPauseState(false); };
+        sessionInviteButton = new Button(uiTex, Rectangle.Empty) { Text = "Invite Friends", NormalColor = Color.DarkGreen, HoverColor = Color.Green };
+        sessionCloseLobbyButton = new Button(uiTex, Rectangle.Empty) { Text = "Close Session", NormalColor = Color.Firebrick, HoverColor = Color.IndianRed };
+        sessionBackButton = new Button(uiTex, Rectangle.Empty) { Text = "Back", NormalColor = Color.DarkSlateGray, HoverColor = Color.SlateGray };
 
-        inviteButton.OnClick += async () =>
+        // Initialize Slot Buttons (Zero Allocation)
+        for (int i = 0; i < 10; i++)
         {
-            var lobby = SteamManager.CurrentLobby;
-            if (this.isHost || !lobby.HasValue)
-            {
-                inviteButton.IsEnabled = false;
-                if (!lobby.HasValue)
-                {
-                    await SteamManager.CreateLobby();
-                    SteamManager.CurrentLobby?.SetData("GameState", "InGame");
-                }
+            int slotId = i + 1;
+            slotButtons[i] = new Button(uiTex, Rectangle.Empty) { NormalColor = Color.DarkSlateBlue, HoverColor = Color.SlateBlue, FontSize = 16f };
+            slotButtons[i].OnClick += () => HandleSlotClick(slotId);
+        }
+        slotBackButton = new Button(uiTex, Rectangle.Empty) { Text = "Back", NormalColor = Color.DarkRed, HoverColor = Color.Red };
+        slotBackButton.OnClick += () => currentMode = PauseMenuMode.Main;
 
-                if (SteamManager.CurrentLobby.HasValue) friendsOverlay.Show();
-                inviteButton.IsEnabled = true;
+        NetworkRouter.OnPauseStateChanged += HandleNetworkPause;
+
+        // Routing
+        unpauseButton.OnClick += () => TransmitPauseState(false);
+        saveButton.OnClick += () => { currentMode = PauseMenuMode.Save; RefreshSaveSlots(true); };
+        loadButton.OnClick += () => { currentMode = PauseMenuMode.Load; RefreshSaveSlots(false); };
+        optionsButton.OnClick += () => stateManager.PushState(new OptionsState(game, stateManager));
+
+        hostSessionButton.OnClick += async () =>
+        {
+            if (SteamManager.IsSteamActive && !SteamManager.CurrentLobby.HasValue)
+            {
+                await SteamManager.CreateLobby();
+                SteamManager.CurrentLobby?.SetData("GameState", "InGame");
             }
         };
 
-        closeLobbyButton.OnClick += () =>
-        {
-            SteamManager.LeaveLobby();
-            TransmitPauseState(false);
-        };
+        sessionMenuButton.OnClick += () => currentMode = PauseMenuMode.Session;
+        sessionBackButton.OnClick += () => { currentMode = PauseMenuMode.Main; friendsOverlay.IsVisible = false; };
+        sessionInviteButton.OnClick += () => friendsOverlay.Show();
+        sessionCloseLobbyButton.OnClick += () => { SteamManager.LeaveLobby(); currentMode = PauseMenuMode.Main; };
 
         exitButton.OnClick += () =>
         {
@@ -76,73 +110,160 @@ public class PauseMenuOverlay
         };
     }
 
-    public void Unload() => NetworkRouter.OnPauseStateChanged -= HandlePauseState;
+    public void Unload() => NetworkRouter.OnPauseStateChanged -= HandleNetworkPause;
 
-    private void HandlePauseState(bool state) => IsPaused = state;
-
-    public void Update()
+    // Updates text safely, reading DB only ONCE upon opening the tab
+    private void RefreshSaveSlots(bool isSaving)
     {
-        UpdateNetworkStatusText();
-        friendsOverlay.Update();
-        if (friendsOverlay.IsVisible) return;
-
-        var lobby = SteamManager.CurrentLobby;
-
-        // ARCHITECTURE FIX: Pattern matching guarantees null-safety for the compiler
-        if (lobby is { } activeLobby)
+        var profiles = SaveManager.GetDisplayProfiles();
+        for (int i = 0; i < 10; i++)
         {
-            int currentMembers = activeLobby.MemberCount;
-            if (IsPaused && currentMembers < previousMemberCount) TransmitPauseState(false);
-            if (IsPaused && currentMembers > previousMemberCount && isHost) TransmitPauseState(true);
-            previousMemberCount = currentMembers;
-        }
+            var p = profiles[i];
+            bool isAutoSave = i < 3;
 
-        if (InputManager.ConsumeAction(GameActions.Pause)) TransmitPauseState(!IsPaused);
-
-        if (IsPaused)
-        {
-            var viewport = game.GraphicsDevice.Viewport;
-            int centerX = (viewport.Width / 2) - 150;
-            int startY = (viewport.Height / 2) - 100;
-            int offset = 0;
-
-            continueButton.Bounds = new Rectangle(centerX, startY + offset, 300, 45); offset += 60;
-
-            bool isHostOrSolo = !lobby.HasValue || isHost;
-            if (isHostOrSolo)
+            if (p == null)
             {
-                inviteButton.Bounds = new Rectangle(centerX, startY + offset, 300, 45); offset += 60;
+                slotButtons[i].Text = isAutoSave ? $"Auto-Save {i+1} - Empty" : $"Slot {i+1} - Empty";
+                slotButtons[i].IsEnabled = isSaving && !isAutoSave;
             }
-
-            if (lobby.HasValue)
+            else
             {
-                closeLobbyButton.Text = isHost ? "Close Lobby (Play Solo)" : "Leave Lobby (Play Solo)";
-                closeLobbyButton.Bounds = new Rectangle(centerX, startY + offset, 300, 45); offset += 60;
+                TimeSpan t = TimeSpan.FromSeconds(p.TotalPlayTimeSeconds);
+                string prefix = isAutoSave ? "Auto" : "Slot";
+                slotButtons[i].Text = $"{prefix} {i+1} | {p.LastSaved:MM/dd HH:mm} | {t.Hours}h {t.Minutes}m";
+                slotButtons[i].IsEnabled = isSaving ? !isAutoSave : true;
             }
-
-            exitButton.Bounds = new Rectangle(centerX, startY + offset, 300, 45);
-
-            Point mousePos = InputManager.GetMousePosition();
-            bool isClicked = InputManager.ConsumeUIClick();
-
-            continueButton.Update(mousePos, isClicked);
-            if (isHostOrSolo) inviteButton.Update(mousePos, isClicked);
-            if (lobby.HasValue) closeLobbyButton.Update(mousePos, isClicked);
-            exitButton.Update(mousePos, isClicked);
         }
     }
 
-    private void UpdateNetworkStatusText()
+    private void HandleSlotClick(int slotId)
     {
-        var lobby = SteamManager.CurrentLobby;
-        if (!SteamManager.IsSteamActive) networkStatusText = "Network Offline (Local Solo)";
-        else if (lobby is { } activeLobby) networkStatusText = isHost ? $"Hosting Match: {activeLobby.MemberCount} Players" : "Connected to Host";
-        else networkStatusText = "Playing Solo (Offline)";
+        if (currentMode == PauseMenuMode.Save)
+        {
+            OnSaveSlotRequested?.Invoke(slotId);
+            currentMode = PauseMenuMode.Main;
+        }
+        else if (currentMode == PauseMenuMode.Load)
+        {
+            OnLoadSlotRequested?.Invoke(slotId);
+            TransmitPauseState(false);
+        }
+    }
+
+    private void HandleNetworkPause(bool state, SteamId senderId)
+    {
+        IsPaused = state;
+        currentMode = PauseMenuMode.Main;
+
+        if (IsPaused && SteamManager.IsSteamActive)
+        {
+            if (senderId != SteamClient.SteamId) pauseStatusText = $"Game Paused by {new Friend(senderId).Name}";
+            else pauseStatusText = "Game Paused";
+        }
+        else pauseStatusText = "Game Paused";
+    }
+
+    public void Update()
+    {
+        if (InputManager.ConsumeAction(GameActions.Pause)) TransmitPauseState(!IsPaused);
+
+        if (!IsPaused) return;
+
+        Point mousePos = InputManager.GetScreenMousePosition();
+        bool isClicked = InputManager.ConsumeUIClick();
+
+        if (currentMode == PauseMenuMode.Session) { UpdateSessionMenu(mousePos, isClicked); return; }
+        if (currentMode == PauseMenuMode.Save || currentMode == PauseMenuMode.Load) { UpdateSlotMenu(mousePos, isClicked); return; }
+
+        var viewport = game.GraphicsDevice.Viewport;
+        int centerX = (viewport.Width / 2) - 150;
+        int currentY = (viewport.Height / 2) - 160;
+        int spacing = 55;
+
+        bool isOnline = SteamManager.CurrentLobby.HasValue;
+
+        unpauseButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+        unpauseButton.Update(mousePos, isClicked);
+
+        if (isHostOrigin)
+        {
+            saveButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+            saveButton.Update(mousePos, isClicked);
+        }
+
+        if (isHostOrigin && !isOnline)
+        {
+            loadButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+            loadButton.Update(mousePos, isClicked);
+        }
+
+        if (!isOnline)
+        {
+            hostSessionButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+            hostSessionButton.Update(mousePos, isClicked);
+        }
+        else
+        {
+            sessionMenuButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+            sessionMenuButton.Update(mousePos, isClicked);
+        }
+
+        optionsButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
+        optionsButton.Update(mousePos, isClicked);
+
+        exitButton.Bounds = new Rectangle(centerX, currentY, 300, 45);
+        exitButton.Update(mousePos, isClicked);
+    }
+
+    private void UpdateSessionMenu(Point mousePos, bool isClicked)
+    {
+        friendsOverlay.Update(mousePos, isClicked);
+        if (friendsOverlay.IsVisible) return;
+
+        var viewport = game.GraphicsDevice.Viewport;
+        int centerX = (viewport.Width / 2) - 150;
+        int bottomY = (viewport.Height / 2) + 120;
+
+        if (isHostOrigin)
+        {
+            sessionInviteButton.Bounds = new Rectangle(centerX, bottomY - 60, 300, 45);
+            sessionCloseLobbyButton.Bounds = new Rectangle(centerX, bottomY, 145, 45);
+            sessionBackButton.Bounds = new Rectangle(centerX + 155, bottomY, 145, 45);
+
+            sessionInviteButton.Update(mousePos, isClicked);
+            sessionCloseLobbyButton.Update(mousePos, isClicked);
+        }
+        else
+        {
+            sessionBackButton.Bounds = new Rectangle(centerX, bottomY, 300, 45);
+        }
+
+        sessionBackButton.Update(mousePos, isClicked);
+    }
+
+    private void UpdateSlotMenu(Point mousePos, bool isClicked)
+    {
+        var viewport = game.GraphicsDevice.Viewport;
+        int centerX = (viewport.Width / 2) - 200;
+        int currentY = (viewport.Height / 2) - 260; // Start higher to fit 10 slots
+
+        for (int i = 0; i < 10; i++)
+        {
+            slotButtons[i].Bounds = new Rectangle(centerX, currentY, 400, 40);
+            currentY += 45;
+            slotButtons[i].Update(mousePos, isClicked);
+        }
+
+        slotBackButton.Bounds = new Rectangle(centerX, currentY + 10, 400, 40);
+        slotBackButton.Update(mousePos, isClicked);
     }
 
     private void TransmitPauseState(bool enforcePause)
     {
         IsPaused = enforcePause;
+        pauseStatusText = "Game Paused";
+        currentMode = PauseMenuMode.Main;
+
         signalBuffer[0] = IsPaused ? PacketTypes.PauseGame : PacketTypes.ResumeGame;
 
         if (SteamManager.CurrentLobby is { } activeLobby)
@@ -157,28 +278,67 @@ public class PauseMenuOverlay
 
     public void Draw(SpriteBatch spriteBatch)
     {
-        if (IsPaused)
+        if (!IsPaused) return;
+
+        var viewport = game.GraphicsDevice.Viewport;
+        spriteBatch.Draw(AssetManager.WhitePixel, viewport.Bounds, Color.Black * 0.85f);
+
+        if (AssetManager.IsFontLoaded)
         {
-            var viewport = game.GraphicsDevice.Viewport;
-            spriteBatch.Draw(AssetManager.WhitePixel, viewport.Bounds, Color.Black * 0.85f);
-
-            continueButton.Draw(spriteBatch);
-
-            bool isHostOrSolo = !SteamManager.CurrentLobby.HasValue || isHost;
-            if (isHostOrSolo) inviteButton.Draw(spriteBatch);
-
-            if (SteamManager.CurrentLobby.HasValue) closeLobbyButton.Draw(spriteBatch);
-            exitButton.Draw(spriteBatch);
-
-            if (AssetManager.IsFontLoaded)
-            {
-                SpriteFontBase font = AssetManager.GetFont(24f);
-                var textSize = font.MeasureString(networkStatusText);
-                System.Numerics.Vector2 textPos = new System.Numerics.Vector2((viewport.Width - textSize.X) / 2f, (viewport.Height / 2f) - 170);
-                font.DrawText(AssetManager.FontRenderer, networkStatusText, textPos, new FSColor(135, 206, 250, 255));
-            }
-
-            friendsOverlay.Draw(spriteBatch);
+            SpriteFontBase font = AssetManager.GetFont(28f);
+            var textSize = font.MeasureString(pauseStatusText);
+            System.Numerics.Vector2 textPos = new System.Numerics.Vector2((viewport.Width - textSize.X) / 2f, (viewport.Height / 2f) - 300);
+            font.DrawText(AssetManager.FontRenderer, pauseStatusText, textPos, new FSColor(135, 206, 250, 255));
         }
+
+        if (currentMode == PauseMenuMode.Session) { DrawSessionMenu(spriteBatch); return; }
+        if (currentMode == PauseMenuMode.Save || currentMode == PauseMenuMode.Load) { DrawSlotMenu(spriteBatch); return; }
+
+        bool isOnline = SteamManager.CurrentLobby.HasValue;
+
+        unpauseButton.Draw(spriteBatch);
+        if (isHostOrigin) saveButton.Draw(spriteBatch);
+        if (isHostOrigin && !isOnline) loadButton.Draw(spriteBatch);
+
+        if (!isOnline) hostSessionButton.Draw(spriteBatch);
+        else sessionMenuButton.Draw(spriteBatch);
+
+        optionsButton.Draw(spriteBatch);
+        exitButton.Draw(spriteBatch);
+    }
+
+    private void DrawSessionMenu(SpriteBatch spriteBatch)
+    {
+        var viewport = game.GraphicsDevice.Viewport;
+        int centerX = (viewport.Width / 2) - 150;
+        int startY = (viewport.Height / 2) - 150;
+
+        if (SteamManager.CurrentLobby is { } activeLobby && AssetManager.IsFontLoaded)
+        {
+            SpriteFontBase font = AssetManager.GetFont(20f);
+            int listY = startY;
+
+            foreach (var member in activeLobby.Members)
+            {
+                string tag = member.Id == activeLobby.Owner.Id ? "[HOST] " : "[GUEST] ";
+                font.DrawText(AssetManager.FontRenderer, tag + member.Name, new System.Numerics.Vector2(centerX, listY), FSColor.White);
+                listY += 30;
+            }
+        }
+
+        if (isHostOrigin)
+        {
+            sessionInviteButton.Draw(spriteBatch);
+            sessionCloseLobbyButton.Draw(spriteBatch);
+        }
+        sessionBackButton.Draw(spriteBatch);
+
+        friendsOverlay.Draw(spriteBatch);
+    }
+
+    private void DrawSlotMenu(SpriteBatch spriteBatch)
+    {
+        for (int i = 0; i < 10; i++) slotButtons[i].Draw(spriteBatch);
+        slotBackButton.Draw(spriteBatch);
     }
 }

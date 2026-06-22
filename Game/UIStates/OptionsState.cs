@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MyGame.Engine.States;
-using MyGame.Engine.UI;
 using MyGame.Engine.Core;
-using MyGame.Engine.Input;
+using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.UI;
+using MyGame.Game.Logic;
 
 namespace MyGame.Game.UIStates;
 
@@ -16,14 +15,13 @@ public class OptionsState : GameState
     private Button vsyncButton = null!;
     private Button fullscreenButton = null!;
     private Button applyButton = null!;
+    private Button wipeSavesButton = null!;
     private Button backButton = null!;
 
     private DisplayMode[] _resolutions = null!;
     private int _currentResIndex;
-
     private readonly int[] _fpsOptions = { 30, 60, 120, 240, 0 };
     private int _currentFpsIndex;
-
     private bool _pendingFullscreen;
     private bool _pendingVSync;
 
@@ -49,6 +47,7 @@ public class OptionsState : GameState
         fullscreenButton = new Button(uiTex, Rectangle.Empty) { NormalColor = Color.DarkSlateBlue, HoverColor = Color.SlateBlue };
 
         applyButton = new Button(uiTex, Rectangle.Empty) { Text = "Apply Settings", NormalColor = Color.DarkGreen, HoverColor = Color.Green };
+        wipeSavesButton = new Button(uiTex, Rectangle.Empty) { Text = "Wipe All Save Data", NormalColor = Color.Firebrick, HoverColor = Color.IndianRed };
         backButton = new Button(uiTex, Rectangle.Empty) { Text = "Back", NormalColor = Color.DarkRed, HoverColor = Color.Red };
 
         resButton.OnClick += () => { _currentResIndex = (_currentResIndex + 1) % _resolutions.Length; };
@@ -62,6 +61,8 @@ public class OptionsState : GameState
             int fps = _fpsOptions[_currentFpsIndex];
             SettingsManager.ApplyDisplaySettings(res.Width, res.Height, _pendingFullscreen, _pendingVSync, fps);
         };
+
+        wipeSavesButton.OnClick += () => SaveManager.DeleteAllSaves();
 
         backButton.OnClick += () => { stateManager.PopState(); };
 
@@ -80,11 +81,11 @@ public class OptionsState : GameState
         fullscreenButton.Text = _pendingFullscreen ? "Fullscreen: ON" : "Fullscreen: OFF";
     }
 
-    public override void Update(GameTime gameTime)
+    public override void Update(float deltaTime)
     {
         var viewport = game.GraphicsDevice.Viewport;
         int centerX = (viewport.Width / 2) - 150;
-        int startY = (viewport.Height / 2) - 180;
+        int startY = (viewport.Height / 2) - 200;
         int spacing = 55;
 
         resButton.Bounds = new Rectangle(centerX, startY, 300, 45);
@@ -92,9 +93,10 @@ public class OptionsState : GameState
         vsyncButton.Bounds = new Rectangle(centerX, startY + spacing * 2, 300, 45);
         fullscreenButton.Bounds = new Rectangle(centerX, startY + spacing * 3, 300, 45);
         applyButton.Bounds = new Rectangle(centerX, startY + spacing * 4 + 20, 300, 45);
-        backButton.Bounds = new Rectangle(centerX, startY + spacing * 5 + 20, 300, 45);
+        wipeSavesButton.Bounds = new Rectangle(centerX, startY + spacing * 5 + 20, 300, 45);
+        backButton.Bounds = new Rectangle(centerX, startY + spacing * 6 + 20, 300, 45);
 
-        Point mousePos = InputManager.GetMousePosition();
+        Point mousePos = InputManager.GetScreenMousePosition();
         bool isClicked = InputManager.ConsumeUIClick();
 
         resButton.Update(mousePos, isClicked);
@@ -102,6 +104,7 @@ public class OptionsState : GameState
         vsyncButton.Update(mousePos, isClicked);
         fullscreenButton.Update(mousePos, isClicked);
         applyButton.Update(mousePos, isClicked);
+        wipeSavesButton.Update(mousePos, isClicked);
         backButton.Update(mousePos, isClicked);
 
         UpdateLabels();
@@ -117,6 +120,7 @@ public class OptionsState : GameState
         vsyncButton.Draw(spriteBatch);
         fullscreenButton.Draw(spriteBatch);
         applyButton.Draw(spriteBatch);
+        wipeSavesButton.Draw(spriteBatch);
         backButton.Draw(spriteBatch);
 
         spriteBatch.End();

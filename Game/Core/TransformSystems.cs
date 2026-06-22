@@ -1,5 +1,6 @@
 ﻿using Flecs.NET.Core;
-using MyGame.Game.Physics;
+using MyGame.Engine.StandardModules.Physics2D;
+using MyGame.Engine.Core;
 
 namespace MyGame.Game.Core;
 
@@ -15,16 +16,16 @@ public static class TransformSystems
 				prevPos.Y = pos.Y;
 			});
 
-		world.Observer<PhysicsBody>("PhysicsBodyCleanupObserver")
+		world.Observer<PhysicsComponents.PhysicsBody>("PhysicsBodyCleanupObserver")
 			.Event(Ecs.OnRemove)
-			.Each((ref PhysicsBody pBody) =>
+			.Each((ref PhysicsComponents.PhysicsBody pBody) =>
 			{
 				if (pBody.Value != null)
 				{
-					var body = (nkast.Aether.Physics2D.Dynamics.Body)pBody.Value;
-					if (MyGame.Game1.Instance.PhysicsWorld.BodyList.Contains(body))
+					var body = pBody.Value;
+					if (body.World != null)
 					{
-						MyGame.Game1.Instance.PhysicsWorld.Remove(body);
+						body.World.Remove((nkast.Aether.Physics2D.Dynamics.Body)body);
 					}
 				}
 			});

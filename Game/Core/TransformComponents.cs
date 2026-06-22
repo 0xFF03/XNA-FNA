@@ -34,3 +34,8 @@ public struct FacingDirection
 {
 	public int Value;
 }
+
+public struct PhysicsDimension
+{
+	public string Name;
+}

@@ -6,12 +6,10 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using ImGuiNET;
 
-namespace MyGame.Engine.Debug;
+namespace MyGame.Engine.Platform.Debug;
 
-// ARCHITECTURE FIX: Class sealed to prevent virtual member call issues in the constructor.
 public sealed class ImGuiRenderer
 {
-    // ARCHITECTURE FIX: Explicit framework Game type avoids the "MyGame.Game" namespace collision
     private readonly Microsoft.Xna.Framework.Game _game;
     private readonly GraphicsDevice _graphicsDevice;
     private BasicEffect? _effect;

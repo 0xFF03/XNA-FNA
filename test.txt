@@ -1,29 +1,90 @@
-﻿MyGame/
-├── Engine/           <-- Agnostic framework. Ignorant of your Metroidvania rules.
-│   ├── Core/         (AssetManager, EngineLogger, SettingsManager)
-│   ├── Debug/        (DebugUIManager, ImGuiRenderer)
-│   ├── Input/        (InputManager)
-│   ├── Networking/   (SteamManager, SteamAvatarCache, NetworkRouter, NetworkPackets)
-│   ├── Rendering/    (Camera2D)
-│   ├── States/       (StateManager, GameState)
-│   └── UI/           (Button, FNAFontRenderer)
+﻿Here is the professional, scale-free architecture structure.
+Every file is strictly separated by its specialized
+domain concern (Separation of Concerns).
+
+MyGame/
 │
-├── Game/             <-- Your specific game logic. 
-│   ├── Core/         (TransformSystems, TransformComponents)
-│   ├── Combat/       (LocalHitDetectionSystem, CombatComponents)
-│   ├── Physics/      (LocalPlayerSystems, PhysicsComponents)
-│   ├── NetworkSync/  (DistributedEventSystem, NetworkReceiverSystem, NetworkCleanupSystem, NetworkRegistry)
-│   ├── Renderers/    (PlayerRenderSystem, ProjectileRenderSystem, TileRenderSystem)
-│   ├── World/        (MapSpawningSystem, MapComponents, LdtkModels, MapLoader)
-│   └── Features/     (See note below regarding "GameData" vs "Features")
+├── Content/                      # Raw and compiled assets processed by FNA
+│   ├── Audio/                    # Sound effects (.wav) and music (.ogg)
+│   ├── Fonts/                    # TrueType fonts (.ttf)
+│   ├── Maps/                     # LDtk project JSON files (.ldtk)
+│   ├── Shaders/                  # Vulkan 1.4 HLSL source and compiled Effect binaries (.fxb)
+│   └── Textures/                 # Sprite sheets and PixelOver skeletal atlas files
 │
-├── Prefabs/          <-- Entity factories.
-│   ├── PlayerFactory.cs
-│   └── ProjectileFactory.cs
+├── Engine/                       # Genre-Agnostic Low-Level Plumbing Framework (Pure Engine)
+│   ├── Audio/
+│   │   └── AudioManager.cs       # Master volume control and device voice allocation pools
+│   ├── Core/
+│   │   ├── AssetManager.cs       # File-IO texture streaming and texture tracking
+│   │   ├── EngineLogger.cs       # Allocation-free diagnostic file writing
+│   │   ├── Game1.cs              # Master loop orchestrator & device initialization
+│   │   ├── Program.cs            # Crash boundaries and entry point
+│   │   └── SettingsManager.cs    # Window context modifications and configuration tracking
+│   ├── Debug/
+│   │   ├── DebugUIManager.cs     # ImGui layouts mapping engine statistics
+│   │   └── ImGuiRenderer.cs      # Specialized FNA VertexBuffer wrapper for ImGui drawing
+│   ├── Input/
+│   │   └── InputManager.cs       # Static allocation-free action state mapping
+│   ├── Maps/
+│   │   ├── LdtkModels.cs         # JSON mapping contracts for LDtk structures
+│   │   └── MapLoader.cs          # Direct map loading and boundary parsing
+│   ├── Networking/
+│   │   ├── NetworkIdGenerator.cs # Entity identifier resolution fallback seeds
+│   │   ├── NetworkPackets.cs     # MemoryPack serialization layout contracts
+│   │   └── SteamManager.cs       # Facepunch Steamworks callback updates
+│   └── Rendering/
+│       ├── Camera2D.cs           # Vector projection bounding bounds tracking
+│       └── ShaderPipeline.cs     # Master Vulkan effect state tracker (SpriteBatch custom shaders)
 │
-└── UIStates/         <-- Your specific menus.
-    ├── CharacterSelectState.cs
-    ├── GameplayState.cs
-    ├── MainMenuState.cs
-    ├── OptionsState.cs
-    └── FriendsListOverlay.cs
+└── Game/                         # Feature Modules, Entities, and Simulation Logic (Your Game)
+    ├── Combat/
+    │   ├── CombatComponents.cs   # Health, Damage, Cooldown, HitboxRadius parameters
+    │   ├── LocalHitDetectionSystem.cs
+    │   └── ProjectileSystem.cs
+    ├── Core/
+    │   ├── CharacterComponents.cs# Shared state markers (FacingDirection, GroundState)
+    │   ├── TransformComponents.cs# Structural position vectors (Position, Velocity, PreviousPosition)
+    │   └── TransformSystems.cs   # Base frame state transformations
+    ├── Features/                 # Modular, completely decoupled feature libraries
+    │   ├── Abilities/
+    │   │   ├── AbilityComponents.cs # SkillParameters, Cooldowns, CastRequest states
+    │   │   └── AbilitySystems.cs # Direct projection, logic and cast evaluations
+    │   ├── Crafting/
+    │   │   ├── CraftingComponents.cs # RecipeLibrary, BlueprintMatch values
+    │   │   └── CraftingSystems.cs # Assembly validation and verification passes
+    │   ├── Gathering/
+    │   │   ├── ResourceComponents.cs # NodeDurability, ResourceType definitions
+    │   │   └── GatheringSystems.cs   # Damage mapping against harvest blocks
+    │   ├── Items/
+    │   │   ├── ItemComponents.cs # InventorySlot, ItemWeight, LootTable arrays
+    │   │   └── InventorySystems.cs # Item pickup logic and slot array mutations
+    │   └── Minigames/
+    │       ├── MinigameComponents.cs # PuzzleParameters, ActiveMinigameTag states
+    │       └── MinigameSystems.cs # Specialized input manipulation processing loops
+    ├── NetworkSync/
+    │   ├── DistributedEventSystem.cs
+    │   ├── NetworkBroadcastSystem.cs
+    │   ├── NetworkCleanupSystem.cs
+    │   ├── NetworkComponents.cs
+    │   ├── NetworkReceiverSystem.cs
+    │   ├── NetworkRouter.cs
+    │   ├── NetworkRegistry.cs
+    │   └── WorldSyncSystem.cs
+    ├── NPC/                      # Complete AI profiling categorization architecture
+    │   ├── NpcComponents.cs      # AggroTarget, PatrolRoute, AiProfileState, DialogueTree
+    │   ├── FriendlyAiSystem.cs   # Path tracing for passive entities and vendors
+    │   ├── EnemyAiSystem.cs      # Combat loop tracing and chase behaviors
+    │   └── RespawnSystem.cs      # Cooldown management for spawning dead entity signatures
+    ├── Physics/
+    │   ├── LocalPlayerSystems.cs
+    │   ├── PhysicsComponents.cs  # Unified physics container (PhysicsBody)
+    │   └── RemotePlayerSystems.cs
+    ├── Renderers/                # Specialized, data-blind rendering modules
+    │   ├── AnimatedSpriteSystem.cs # Handles matrix processing for PixelOver skeletons
+    │   ├── PlayerRenderSystem.cs
+    │   ├── ProjectileRenderSystem.cs
+    │   └── TileRenderSystem.cs
+    └── UIStates/                 # Global UI layouts and context screens
+        ├── MainMenuState.cs
+        ├── CharacterSelectState.cs
+        └── GameplayState.cs

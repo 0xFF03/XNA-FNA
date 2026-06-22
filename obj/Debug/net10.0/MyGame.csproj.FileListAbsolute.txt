@@ -1,30 +1,4 @@
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Fonts\DefaultFont.ttf
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld.ldtk
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Boss_room.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Cross_roads.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Entrance.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Exit.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Flooded_rooms.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Garden.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Hidden_cave.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Large_water.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Long_hallway.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Ossuary.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Pit.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\SaveRoom.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Sewers1.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Sewers2.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Sewers_trash.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Shop.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Shop_entrance.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Shortcut_passage.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\The_ponds.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\The_tower.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\GameWorld\Water_supply.ldtkl
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\Cavernas_by_Adam_Saltsman.png
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\Inca_back2_by_Kronbits.png
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\Inca_front_by_Kronbits-extended.png
-C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\SunnyLand_by_Ansimuz-extended.png
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\FAudio.dll
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\FNA3D.dll
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\fnalibs\libtheorafile.dll
@@ -84,3 +58,9 @@ C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\refint\MyGame.dll
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.pdb
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\MyGame.genruntimeconfig.cache
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\obj\Debug\net10.0\ref\MyGame.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Roy-T.AStar.dll
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Maps\Level1.ldtk
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\Cruiser.png
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tileset Grass.png
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tileset Stone Ground.png
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tileset Wall.png

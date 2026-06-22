@@ -5,16 +5,12 @@ using Flecs.NET.Core;
 using ImGuiNET;
 
 using MyGame.Engine.Core;
-using MyGame.Engine.Input;
-using MyGame.Engine.Networking;
-using MyGame.Prefabs;
-
+using MyGame.Engine.StandardModules.Multiplayer;
+using MyGame.Engine.StandardModules.Physics2D;
+using MyGame.Engine.StandardModules.Combat;
 using MyGame.Game.Core;
-using MyGame.Game.Combat;
-using MyGame.Game.Physics;
-using MyGame.Game.NetworkSync;
 
-namespace MyGame.Engine.Debug;
+namespace MyGame.Engine.Platform.Debug;
 
 public class DebugUIManager
 {
@@ -26,10 +22,16 @@ public class DebugUIManager
     private float _fpsTimer = 0f;
     private int _currentFps = 0;
 
+    private Query<PhysicsDimension> _dimensionQuery;
+    private Query<Position, PhysicsDimension> _spaceQuery;
+
     public void Initialize(Game1 game)
     {
        imGuiRenderer = new ImGuiRenderer(game);
        imGuiRenderer.RebuildFontAtlas();
+
+       _dimensionQuery = game.EcsWorld.QueryBuilder<PhysicsDimension>().With<LocalPlayerTag>().Build();
+       _spaceQuery = game.EcsWorld.QueryBuilder<Position, PhysicsDimension>().With<LocalPlayerTag>().Build();
     }
 
     public void Draw(GameTime gameTime)
@@ -51,56 +53,46 @@ public class DebugUIManager
 
        imGuiRenderer.BeforeLayout(gameTime);
 
-       DrawProfilerWindow();
-       DrawNetworkProfiler();
-       DrawLoggerConsole();
-       DrawPhysicsWindow();
-       DrawCombatSandbox();
+       ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 20), ImGuiCond.FirstUseEver);
+       ImGui.SetNextWindowSize(new System.Numerics.Vector2(600, 350), ImGuiCond.FirstUseEver);
+
+       if (ImGui.Begin("Engine Dashboard", ImGuiWindowFlags.NoCollapse))
+       {
+           if (ImGui.BeginTabBar("MainTabs"))
+           {
+               if (ImGui.BeginTabItem("Profiler")) { DrawProfilerTab(); ImGui.EndTabItem(); }
+               if (ImGui.BeginTabItem("Network")) { DrawNetworkTab(); ImGui.EndTabItem(); }
+               if (ImGui.BeginTabItem("Space & Vehicles")) { DrawSpaceSandboxTab(); ImGui.EndTabItem(); }
+               if (ImGui.BeginTabItem("Console")) { DrawLoggerConsoleTab(); ImGui.EndTabItem(); }
+               ImGui.EndTabBar();
+           }
+       }
+       ImGui.End();
 
        imGuiRenderer.AfterLayout();
     }
 
-    private void DrawProfilerWindow()
+    private void DrawProfilerTab()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 10), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(350, 250), ImGuiCond.FirstUseEver);
-
-        if (!ImGui.Begin("Engine Profiler"))
-        {
-            ImGui.End();
-            return;
-        }
-
-        ImGui.TextColored(new System.Numerics.Vector4(0, 1, 0, 1), $"Render FPS: {_currentFps}");
-        ImGui.Text($"Logic Delta: {System.Math.Round(Game1.LastUpdateDurationMs, 2)} ms");
+        ImGui.TextColored(new System.Numerics.Vector4(0, 1, 0, 1), "Render FPS: " + _currentFps.ToString());
+        ImGui.Text("Logic Delta: " + System.Math.Round(Game1.LastUpdateDurationMs, 2).ToString() + " ms");
 
         float heapMb = System.GC.GetTotalMemory(false) / (1024f * 1024f);
-        ImGui.Text($"Managed Heap: {System.Math.Round(heapMb, 2)} MB");
-        ImGui.Text($"GC Gen 0/1/2: {System.GC.CollectionCount(0)} / {System.GC.CollectionCount(1)} / {System.GC.CollectionCount(2)}");
+        ImGui.Text("Managed Heap: " + System.Math.Round(heapMb, 2).ToString() + " MB");
+        ImGui.Text("GC Gen 0/1/2: " + System.GC.CollectionCount(0).ToString() + " / " + System.GC.CollectionCount(1).ToString() + " / " + System.GC.CollectionCount(2).ToString());
 
         ImGui.Separator();
         ImGui.TextColored(new System.Numerics.Vector4(0, 1, 1, 1), "ECS Architecture:");
 
         var ecs = Game1.Instance.EcsWorld;
-        ImGui.Text($"Local Players: {ecs.Count<LocalPlayerTag>()}");
-        ImGui.Text($"Remote Shadows: {ecs.Count<RemotePlayerTag>()}");
-        ImGui.Text($"Active Projectiles: {ecs.Count<ProjectileTag>()}");
-        ImGui.Text($"Entities with Health: {ecs.Count<Health>()}");
-
-        ImGui.End();
+        ImGui.Text("Local Players: " + ecs.Count<LocalPlayerTag>().ToString());
+        ImGui.Text("Remote Shadows: " + ecs.Count<RemotePlayerTag>().ToString());
+        ImGui.Text("Active Projectiles: " + ecs.Count<BaseCombatComponents.ProjectileTag>().ToString());
+        ImGui.Text("Entities with Health: " + ecs.Count<BaseCombatComponents.Health>().ToString());
     }
 
-    private void DrawNetworkProfiler()
+    private void DrawNetworkTab()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(370, 10), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 200), ImGuiCond.FirstUseEver);
-
-        if (!ImGui.Begin("Network & Steamworks"))
-        {
-            ImGui.End();
-            return;
-        }
-
         bool steamActive = SteamManager.IsSteamActive;
         ImGui.TextColored(steamActive ? new System.Numerics.Vector4(0, 1, 0, 1) : new System.Numerics.Vector4(1, 0, 0, 1),
             steamActive ? "Steam API: ONLINE" : "Steam API: OFFLINE");
@@ -111,26 +103,78 @@ public class DebugUIManager
         {
             bool isHost = SteamManager.KnownHostId.HasValue && SteamManager.KnownHostId.Value == Steamworks.SteamClient.SteamId;
             ImGui.TextColored(new System.Numerics.Vector4(1, 0.8f, 0, 1), isHost ? "[ HOST ]" : "[ CLIENT ]");
-            ImGui.Text($"Lobby ID: {lobby.Id}");
-            ImGui.Text($"Members: {lobby.MemberCount} / {lobby.MaxMembers}");
-            ImGui.Text($"State: {lobby.GetData("GameState")}");
+            ImGui.Text("Lobby ID: " + lobby.Id.Value.ToString());
+            ImGui.Text("Members: " + lobby.MemberCount.ToString() + " / " + lobby.MaxMembers.ToString());
+            ImGui.Text("State: " + lobby.GetData("GameState"));
         }
         else ImGui.TextColored(new System.Numerics.Vector4(0.5f, 0.5f, 0.5f, 1), "Not connected to a Lobby.");
-
-        ImGui.End();
     }
 
-    private void DrawLoggerConsole()
+    private void DrawSpaceSandboxTab()
     {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 500), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(660, 200), ImGuiCond.FirstUseEver);
+        string currentDim = "MacroSpace";
+        string dimBuffer = currentDim;
+        _dimensionQuery.Each((ref PhysicsDimension dim) => { dimBuffer = dim.Name; });
+        currentDim = dimBuffer;
 
-        if (!ImGui.Begin("Live Event Console"))
+        var physWorld = PhysicsWorldManager.GetWorld(currentDim);
+        ImGui.TextColored(new System.Numerics.Vector4(0, 1, 1, 1), "Current Dimension: " + currentDim);
+        ImGui.Text("Active Rigidbodies: " + physWorld.BodyList.Count.ToString());
+        ImGui.Text("Gravity Y: " + physWorld.Gravity.Y.ToString());
+
+        ImGui.Separator();
+
+        _spaceQuery.Each((Entity e, ref Position pos, ref PhysicsDimension dim) =>
         {
-            ImGui.End();
-            return;
-        }
+            ImGui.TextColored(new System.Numerics.Vector4(0.8f, 0.8f, 1f, 1), "Airlock Simulation:");
+            if (ImGui.Button("Transfer to Space Station", new System.Numerics.Vector2(250, 30)))
+            {
+                e.Set(new DimensionTransferRequest { TargetDimension = "Space_Station_1", SpawnX = 100, SpawnY = 100 });
+            }
+            if (ImGui.Button("Transfer to MacroSpace", new System.Numerics.Vector2(250, 30)))
+            {
+                e.Set(new DimensionTransferRequest { TargetDimension = "MacroSpace", SpawnX = 100, SpawnY = 100 });
+            }
 
+            ImGui.Separator();
+            ImGui.TextColored(new System.Numerics.Vector4(0.8f, 0.8f, 1f, 1), "Vehicle Simulation:");
+
+            bool hasHelm = e.Has<HelmControl>();
+            if (!hasHelm)
+            {
+                if (ImGui.Button("Take Fake Helm", new System.Numerics.Vector2(250, 30)))
+                {
+                    // ARCHITECTURE FIX: Use Game1.Instance.EcsWorld instead of e.World() pointer
+                    Entity fakeShip = Game1.Instance.EcsWorld.Lookup("ActiveSpaceshipExterior");
+                    if (fakeShip.Id == 0 || !fakeShip.IsAlive())
+                    {
+                        fakeShip = Game1.Instance.EcsWorld.Entity("ActiveSpaceshipExterior")
+                            .Add<TopDownTag>()
+                            .Set(new Position { X = pos.X, Y = pos.Y })
+                            .Set(new Velocity { X = 0, Y = 0 })
+                            .Set(new MovementCapabilities { MoveSpeed = 12f, JumpForce = 0 });
+                    }
+                    e.Set(new HelmControl { ControlledVehicle = fakeShip });
+                }
+            }
+            else
+            {
+                ImGui.TextColored(new System.Numerics.Vector4(1, 0, 0, 1), "PILOTING VEHICLE");
+                if (ImGui.Button("Leave Helm", new System.Numerics.Vector2(250, 30)))
+                {
+                    var helm = e.Get<HelmControl>();
+                    if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.IsAlive())
+                    {
+                        helm.ControlledVehicle.Destruct();
+                    }
+                    e.Remove<HelmControl>();
+                }
+            }
+        });
+    }
+
+    private void DrawLoggerConsoleTab()
+    {
         ImGui.BeginChild("LogScrollRegion", new System.Numerics.Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar);
 
         lock (EngineLogger.ConsoleLock)
@@ -147,54 +191,5 @@ public class DebugUIManager
         if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY()) ImGui.SetScrollHereY(1.0f);
 
         ImGui.EndChild();
-        ImGui.End();
-    }
-
-    private void DrawPhysicsWindow()
-    {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(10, 270), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 120), ImGuiCond.FirstUseEver);
-
-        if (!ImGui.Begin("Aether2D Physics"))
-        {
-            ImGui.End();
-            return;
-        }
-
-        var physWorld = Game1.Instance.PhysicsWorld;
-        ImGui.Text($"Active Rigidbodies: {physWorld.BodyList.Count}");
-        ImGui.Text($"Gravity: {physWorld.Gravity.Y}");
-        ImGui.End();
-    }
-
-    private void DrawCombatSandbox()
-    {
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(320, 270), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(350, 120), ImGuiCond.FirstUseEver);
-
-        if (!ImGui.Begin("Combat Sandbox"))
-        {
-            ImGui.End();
-            return;
-        }
-
-        ImGui.Text("Local Player Testing:");
-        if (ImGui.Button("Fire Projectile (Facing Dir)", new System.Numerics.Vector2(250, 30)))
-        {
-            var ecs = Game1.Instance.EcsWorld;
-            var playerQuery = ecs.QueryBuilder<Position, FacingDirection>().With<LocalPlayerTag>().Build();
-
-            playerQuery.Each((ref Position pos, ref FacingDirection dir) =>
-            {
-                ecs.Entity().Set(new ProjectileSpawnRequest
-                {
-                    StartX = pos.X + (dir.Value * 16f),
-                    StartY = pos.Y,
-                    VelocityX = dir.Value * 400f,
-                    VelocityY = 0f
-                });
-            });
-        }
-        ImGui.End();
     }
 }

@@ -409,6 +409,10 @@
               "target": "Package",
               "version": "[1.21.4, )"
             },
+            "RoyT.AStar": {
+              "target": "Package",
+              "version": "[3.0.2, )"
+            },
             "aelsi2.Facepunch.Steamworks": {
               "target": "Package",
               "version": "[2.3.4, )"

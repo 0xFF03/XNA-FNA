@@ -1,13 +1,13 @@
 ﻿using Flecs.NET.Core;
 using Steamworks;
 using nkast.Aether.Physics2D.Dynamics;
-using MyGame.Engine.Networking;
+using MyGame.Engine.StandardModules.Multiplayer;
+using MyGame.Engine.StandardModules.Combat;
+using MyGame.Engine.StandardModules.Physics2D;
+using MyGame.Engine.Platform;
+using MyGame.Engine.Core;
 using MyGame.Game.Core;
-using MyGame.Game.Combat;
-using MyGame.Game.Physics;
-using MyGame.Game.NetworkSync;
-using MyGame.Game.Renderers;
-using MyGame.Game.Environment;
+using MyGame.Game.Registries;
 
 using AetherVector2 = nkast.Aether.Physics2D.Common.Vector2;
 
@@ -23,13 +23,26 @@ public static class PhysicsLayers
 
 public static class PlayerFactory
 {
-    public const float PixelsPerMeter = 32f;
+    private static bool CheckIfMapIsTopDown(Flecs.NET.Core.World world)
+    {
+        bool isTopDown = false;
+        world.QueryBuilder<MapComponents.MapInstance>().Build().Each((ref MapComponents.MapInstance map) => { isTopDown = map.Data.IsTopDown; });
+        return isTopDown;
+    }
 
-    public static Entity CreateLocal(Flecs.NET.Core.World world, int classId, ulong uniqueId, float spawnX, float spawnY)
+    public static Entity CreateLocal(Flecs.NET.Core.World world, int classId, ulong uniqueId, float spawnX, float spawnY, string targetPhysicsWorld = "MacroSpace")
     {
         string entityLookupName = $"p_{uniqueId}";
-        var initialPosition = new AetherVector2(spawnX / PixelsPerMeter, spawnY / PixelsPerMeter);
-        var aetherBody = Game1.Instance.PhysicsWorld.CreateCapsule(14f / PixelsPerMeter, 5f / PixelsPerMeter, 1f, initialPosition, 0f, BodyType.Dynamic);
+        var initialPosition = new AetherVector2(spawnX / PhysicsSettings.PixelsPerMeter, spawnY / PhysicsSettings.PixelsPerMeter);
+
+        bool isTopDown = CheckIfMapIsTopDown(world);
+
+        var bodyType = BodyType.Dynamic;
+        var physicsWorld = PhysicsWorldManager.GetWorld(targetPhysicsWorld);
+
+        var aetherBody = isTopDown
+            ? physicsWorld.CreateCircle(8f / PhysicsSettings.PixelsPerMeter, 1f, initialPosition, bodyType)
+            : physicsWorld.CreateCapsule(14f / PhysicsSettings.PixelsPerMeter, 5f / PhysicsSettings.PixelsPerMeter, 1f, initialPosition, 0f, bodyType);
 
         aetherBody.FixedRotation = true;
         aetherBody.IsBullet = true;
@@ -41,6 +54,9 @@ public static class PlayerFactory
            aetherBody.FixtureList[0].CollidesWith = PhysicsLayers.Environment | PhysicsLayers.EnemyAndProjectiles | PhysicsLayers.RemotePlayer;
         }
 
+        SteamId safeOwnerId = SteamManager.IsSteamActive ? SteamClient.SteamId : (SteamId)0;
+        var classDef = ClassRegistry.GetClass(classId);
+
         Entity e = world.Entity(entityLookupName)
            .Add<LocalPlayerTag>()
            .Add<MatchEntityTag>()
@@ -51,23 +67,35 @@ public static class PlayerFactory
            .Set(new Velocity { X = 0, Y = 0 })
            .Set(new PreviousVelocity { X = 0, Y = 0 })
            .Set(new CharacterClass { Id = classId })
-           .Set(new NetworkOwner { Value = SteamClient.SteamId })
+           .Set(new MovementCapabilities { MoveSpeed = classDef.MovementSpeed, JumpForce = classDef.JumpForce })
+           .Set(new NetworkOwner { Value = safeOwnerId })
            .Set(new NetworkId { Value = uniqueId })
            .Set(new NetworkSequence { LatestSequence = 0, TimeSinceLastPacket = 0f })
            .Set(new FacingDirection { Value = 1 })
-           .Set(new Health { Current = 100, Max = 100 })
-           .Set(new PhysicsBody { Value = aetherBody });
+           .Set(new BaseCombatComponents.Health { Current = classDef.BaseHealth, Max = classDef.BaseHealth })
+           .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody })
+           .Set(new PhysicsDimension { Name = targetPhysicsWorld });
+
+        if (isTopDown) e.Add<TopDownTag>();
+        else e.Add<SidescrollerTag>();
 
         NetworkRegistry.Add(uniqueId, e);
         return e;
     }
 
-    public static Entity CreateRemote(Flecs.NET.Core.World world, string entityKey, PlayerTransformPacket packet, SteamId senderId)
+    public static Entity CreateRemote(Flecs.NET.Core.World world, string entityKey, PlayerTransformPacket packet, SteamId senderId, string targetPhysicsWorld = "MacroSpace")
     {
-        var startPos = new AetherVector2(packet.X / PixelsPerMeter, packet.Y / PixelsPerMeter);
-        var aetherBody = Game1.Instance.PhysicsWorld.CreateCapsule(14f / PixelsPerMeter, 5f / PixelsPerMeter, 1f, startPos, 0f, BodyType.Kinematic);
+        var startPos = new AetherVector2(packet.X / PhysicsSettings.PixelsPerMeter, packet.Y / PhysicsSettings.PixelsPerMeter);
+
+        bool isTopDown = CheckIfMapIsTopDown(world);
+        var physicsWorld = PhysicsWorldManager.GetWorld(targetPhysicsWorld);
+
+        var aetherBody = isTopDown
+            ? physicsWorld.CreateCircle(8f / PhysicsSettings.PixelsPerMeter, 1f, startPos, BodyType.Kinematic)
+            : physicsWorld.CreateCapsule(14f / PhysicsSettings.PixelsPerMeter, 5f / PhysicsSettings.PixelsPerMeter, 1f, startPos, 0f, BodyType.Kinematic);
 
         aetherBody.Tag = packet.EntityNetworkSequenceId;
+        var classDef = ClassRegistry.GetClass(packet.CharacterClassId);
 
         Entity e = world.Entity(entityKey)
             .Add<RemotePlayerTag>()
@@ -77,12 +105,17 @@ public static class PlayerFactory
             .Set(new TargetPosition { X = packet.X, Y = packet.Y })
             .Set(new Velocity { X = packet.Vx, Y = packet.Vy })
             .Set(new CharacterClass { Id = packet.CharacterClassId })
+            .Set(new MovementCapabilities { MoveSpeed = classDef.MovementSpeed, JumpForce = classDef.JumpForce })
             .Set(new NetworkOwner { Value = senderId })
             .Set(new NetworkId { Value = packet.EntityNetworkSequenceId })
             .Set(new NetworkSequence { LatestSequence = packet.SequenceNumber, TimeSinceLastPacket = 0f })
             .Set(new FacingDirection { Value = packet.FacingDirection })
-            .Set(new Health { Current = 100, Max = 100 })
-            .Set(new PhysicsBody { Value = aetherBody });
+            .Set(new BaseCombatComponents.Health { Current = classDef.BaseHealth, Max = classDef.BaseHealth })
+            .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody })
+            .Set(new PhysicsDimension { Name = targetPhysicsWorld });
+
+        if (isTopDown) e.Add<TopDownTag>();
+        else e.Add<SidescrollerTag>();
 
         NetworkRegistry.Add(packet.EntityNetworkSequenceId, e);
         return e;

@@ -4,7 +4,7 @@ using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using FontStashSharp;
-using MyGame.Engine.UI;
+using MyGame.Engine.Platform.UI;
 
 namespace MyGame.Engine.Core;
 

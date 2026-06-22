@@ -59,21 +59,32 @@ public static class SettingsManager
 
         _settingsCollection.Update(CurrentSettings);
 
-        _graphics.PreferredBackBufferWidth = width;
-        _graphics.PreferredBackBufferHeight = height;
-        _graphics.IsFullScreen = fullscreen;
-        _graphics.SynchronizeWithVerticalRetrace = vsync;
+        bool needsApply = false;
 
-        if (targetFps == 0) // Unlimited
+        if (_graphics.PreferredBackBufferWidth != width) { _graphics.PreferredBackBufferWidth = width; needsApply = true; }
+        if (_graphics.PreferredBackBufferHeight != height) { _graphics.PreferredBackBufferHeight = height; needsApply = true; }
+        if (_graphics.IsFullScreen != fullscreen) { _graphics.IsFullScreen = fullscreen; needsApply = true; }
+        if (_graphics.SynchronizeWithVerticalRetrace != vsync) { _graphics.SynchronizeWithVerticalRetrace = vsync; needsApply = true; }
+
+        if (targetFps == 0)
         {
-            _game.IsFixedTimeStep = false;
+            if (_game.IsFixedTimeStep) { _game.IsFixedTimeStep = false; needsApply = true; }
         }
         else
         {
-            _game.IsFixedTimeStep = true;
-            _game.TargetElapsedTime = TimeSpan.FromSeconds(1d / targetFps);
+            var targetSpan = TimeSpan.FromSeconds(1d / targetFps);
+            if (!_game.IsFixedTimeStep || _game.TargetElapsedTime != targetSpan)
+            {
+                _game.IsFixedTimeStep = true;
+                _game.TargetElapsedTime = targetSpan;
+                needsApply = true;
+            }
         }
 
-        _graphics.ApplyChanges();
+        if (needsApply)
+        {
+            _graphics.ApplyChanges();
+            EngineLogger.Log($"Graphics Device Context updated to {width}x{height}", "SYSTEM");
+        }
     }
 }

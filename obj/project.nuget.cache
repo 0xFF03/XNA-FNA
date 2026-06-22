@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "0OrANElezJ0=",
+  "dgSpecHash": "17lfVAzZ8NY=",
   "success": true,
   "projectFilePath": "C:\\Users\\Petri\\Desktop\\Dev\\FNA\\MyGame\\MyGame.csproj",
   "expectedPackageFiles": [
@@ -18,6 +18,7 @@
     "C:\\Users\\Petri\\.nuget\\packages\\memorypack\\1.21.4\\memorypack.1.21.4.nupkg.sha512",
     "C:\\Users\\Petri\\.nuget\\packages\\memorypack.core\\1.21.4\\memorypack.core.1.21.4.nupkg.sha512",
     "C:\\Users\\Petri\\.nuget\\packages\\memorypack.generator\\1.21.4\\memorypack.generator.1.21.4.nupkg.sha512",
+    "C:\\Users\\Petri\\.nuget\\packages\\royt.astar\\3.0.2\\royt.astar.3.0.2.nupkg.sha512",
     "C:\\Users\\Petri\\.nuget\\packages\\stbimagesharp\\2.30.15\\stbimagesharp.2.30.15.nupkg.sha512",
     "C:\\Users\\Petri\\.nuget\\packages\\stbtruetypesharp\\1.26.12\\stbtruetypesharp.1.26.12.nupkg.sha512"
   ],

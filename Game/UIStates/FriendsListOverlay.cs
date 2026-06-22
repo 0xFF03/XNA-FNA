@@ -2,13 +2,13 @@
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MyGame.Engine.Input;
 using MyGame.Engine.Core;
-using MyGame.Engine.Networking;
-using MyGame.Engine.UI;
+using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.UI;
+using MyGame.Engine.StandardModules.Multiplayer;
 using Steamworks;
 
-namespace MyGame.Game.UIStates; // <-- UPDATED NAMESPACE
+namespace MyGame.Game.UIStates;
 
 public class FriendsListOverlay
 {
@@ -63,7 +63,8 @@ public class FriendsListOverlay
         }
     }
 
-    public void Update()
+    // ARCHITECTURE FIX: Passed input explicitly to prevent parent menus from destroying the click
+    public void Update(Point mousePos, bool isClicked)
     {
         if (!IsVisible) return;
 
@@ -72,9 +73,6 @@ public class FriendsListOverlay
         int height = 450;
         int startX = (viewport.Width - width) / 2;
         int startY = (viewport.Height - height) / 2;
-
-        Point mousePos = InputManager.GetMousePosition();
-        bool isClicked = InputManager.ConsumeUIClick();
 
         for (int i = 0; i < FriendsPerPage; i++)
         {
@@ -91,10 +89,7 @@ public class FriendsListOverlay
                     _friendButtons[i].Text = friend.Name + " (In Lobby)";
                     _friendButtons[i].IsEnabled = false;
                 }
-                else
-                {
-                    _friendButtons[i].IsEnabled = true;
-                }
+                else _friendButtons[i].IsEnabled = true;
 
                 _friendButtons[i].Update(mousePos, isClicked);
             }
