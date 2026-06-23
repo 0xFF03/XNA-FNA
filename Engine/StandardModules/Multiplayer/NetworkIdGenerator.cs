@@ -27,4 +27,19 @@ public static class NetworkIdGenerator
 
 		return (_offlineSessionSeed << 32) | _entityCounter;
 	}
+
+	// ARCHITECTURE FIX: Creates identical Network IDs across all clients based on map strings
+	public static ulong GetDeterministicNetworkId(string stringSeed)
+	{
+		if (string.IsNullOrEmpty(stringSeed)) return GetNextNetworkId();
+
+		// FNV-1a Hashing Algorithm to convert string to ulong safely
+		ulong hash = 14695981039346656037;
+		foreach (char c in stringSeed)
+		{
+			hash ^= c;
+			hash *= 1099511628211;
+		}
+		return hash;
+	}
 }

@@ -51,7 +51,8 @@ public static class PlayerFactory
         if (aetherBody.FixtureList.Count > 0)
         {
            aetherBody.FixtureList[0].CollisionCategories = PhysicsLayers.LocalPlayer;
-           aetherBody.FixtureList[0].CollidesWith = PhysicsLayers.Environment | PhysicsLayers.EnemyAndProjectiles | PhysicsLayers.RemotePlayer;
+           // ARCHITECTURE FIX: Removed RemotePlayer so co-op players do not physically block each other
+           aetherBody.FixtureList[0].CollidesWith = PhysicsLayers.Environment | PhysicsLayers.EnemyAndProjectiles;
         }
 
         SteamId safeOwnerId = SteamManager.IsSteamActive ? SteamClient.SteamId : (SteamId)0;
@@ -73,6 +74,7 @@ public static class PlayerFactory
            .Set(new NetworkSequence { LatestSequence = 0, TimeSinceLastPacket = 0f })
            .Set(new FacingDirection { Value = 1 })
            .Set(new BaseCombatComponents.Health { Current = classDef.BaseHealth, Max = classDef.BaseHealth })
+           .Set(new BaseCombatComponents.CombatAlignment { Value = BaseCombatComponents.Alignment.Friendly })
            .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody })
            .Set(new PhysicsDimension { Name = targetPhysicsWorld });
 
@@ -111,6 +113,7 @@ public static class PlayerFactory
             .Set(new NetworkSequence { LatestSequence = packet.SequenceNumber, TimeSinceLastPacket = 0f })
             .Set(new FacingDirection { Value = packet.FacingDirection })
             .Set(new BaseCombatComponents.Health { Current = classDef.BaseHealth, Max = classDef.BaseHealth })
+            .Set(new BaseCombatComponents.CombatAlignment { Value = BaseCombatComponents.Alignment.Friendly })
             .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody })
             .Set(new PhysicsDimension { Name = targetPhysicsWorld });
 

@@ -2,7 +2,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
-using MyGame.Engine.Platform;
 using MyGame.Engine.StandardModules.Combat;
 using MyGame.Game.Core;
 
@@ -10,30 +9,26 @@ namespace MyGame.Engine.StandardModules.Rendering2D;
 
 public static class PlaceholderProjectileRenderer
 {
-	private static Query<Position, PreviousPosition> _projectileQuery;
-	private static SpriteBatch _batchCache = null!;
-	private static float _alphaCache;
+	private static Query<Position, PreviousPosition, PhysicsDimension> _projectileQuery;
 
 	public static void Initialize(World world)
 	{
-		_projectileQuery = world.QueryBuilder<Position, PreviousPosition>().With<BaseCombatComponents.ProjectileTag>().Build();
+		_projectileQuery = world.QueryBuilder<Position, PreviousPosition, PhysicsDimension>().With<BaseCombatComponents.ProjectileTag>().Build();
 	}
 
-	public static void Draw(SpriteBatch spriteBatch, float alpha)
+	// Inside PlaceholderProjectileRenderer.cs:
+	public static void Draw(SpriteBatch spriteBatch, float alpha, string activeDimension)
 	{
-		_batchCache = spriteBatch;
-		_alphaCache = alpha;
-
-		_projectileQuery.Each((ref Position pos, ref PreviousPosition prevPos) =>
+		_projectileQuery.Each((ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim) =>
 		{
-			float renderX = MathHelper.Lerp(prevPos.X, pos.X, _alphaCache);
-			float renderY = MathHelper.Lerp(prevPos.Y, pos.Y, _alphaCache);
+			if (dim.Name != activeDimension) return;
 
-			_batchCache.Draw(
-				AssetManager.WhitePixel,
-				new Rectangle((int)renderX - 4, (int)renderY - 4, 8, 8),
-				Color.Yellow
-			);
+			float renderX = MathHelper.Lerp(prevPos.X, pos.X, alpha);
+			float renderY = MathHelper.Lerp(prevPos.Y, pos.Y, alpha);
+			Vector2 drawPos = new Vector2(renderX, renderY);
+
+			// Vector2 floating point scaling for perfect sub-pixel rendering
+			spriteBatch.Draw(AssetManager.WhitePixel, drawPos, null, Color.Yellow, 0f, new Vector2(0.5f, 0.5f), new Vector2(8f, 8f), SpriteEffects.None, 0f);
 		});
 	}
 }

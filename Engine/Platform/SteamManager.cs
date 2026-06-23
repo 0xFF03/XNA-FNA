@@ -14,7 +14,13 @@ public static class SteamManager
     public static bool IsSteamActive { get; private set; } = false;
     public static Lobby? CurrentLobby { get; private set; }
     public static SteamId? KnownHostId { get; private set; }
+
     public static readonly HashSet<ulong> ActiveLobbyMembers = new();
+
+    // ARCHITECTURE FIX: Caches strings once per second. Zero-allocation UI rendering.
+    public static readonly Dictionary<ulong, string> ActiveLobbyNames = new();
+
+    private static DateTime _lastLobbyPoll = DateTime.MinValue;
 
     public static void Initialize()
     {
@@ -33,20 +39,34 @@ public static class SteamManager
         }
     }
 
-    private static void OnP2PSessionRequest(SteamId steamId)
+    // ARCHITECTURE FIX: Safely called by Game1 only AFTER StateManager is fully constructed.
+    public static void CheckCommandLineInvites()
     {
-        if (CurrentLobby is { } activeLobby)
+        if (!IsSteamActive) return;
+
+        string[] args = Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length; i++)
         {
-            foreach (var member in activeLobby.Members)
+            if (args[i] == "+connect_lobby" && i + 1 < args.Length)
             {
-                if (member.Id == steamId)
+                if (ulong.TryParse(args[i + 1], out ulong lobbyId))
                 {
-                    SteamNetworking.AllowP2PPacketRelay(true);
-                    SteamNetworking.AcceptP2PSessionWithUser(steamId);
-                    return;
+                    JoinLobbyFromCommandLineAsync(lobbyId);
                 }
             }
         }
+    }
+
+    public static ulong GetLocalOrHostId()
+    {
+        if (KnownHostId.HasValue) return KnownHostId.Value.Value;
+        if (IsSteamActive) return SteamClient.SteamId.Value;
+        return 0;
+    }
+
+    private static void OnP2PSessionRequest(SteamId steamId)
+    {
+        SteamNetworking.AcceptP2PSessionWithUser(steamId);
     }
 
     public static async Task CreateLobby()
@@ -59,6 +79,30 @@ public static class SteamManager
             CurrentLobby.Value.SetFriendsOnly();
             KnownHostId = SteamClient.SteamId;
             CurrentLobby.Value.SetData("GameState", "Lobby");
+            ForceRosterUpdate();
+        }
+    }
+
+    private static async void JoinLobbyFromCommandLineAsync(ulong lobbyId)
+    {
+        var lobby = await SteamMatchmaking.JoinLobbyAsync(lobbyId);
+        if (lobby.HasValue)
+        {
+            CurrentLobby = lobby.Value;
+            KnownHostId = lobby.Value.Owner.Id;
+            ForceRosterUpdate();
+            StateManager.Instance.ChangeState(new CharacterSelectState(Game1.Instance, StateManager.Instance));
+        }
+    }
+
+    private static async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
+    {
+        if (await lobby.Join() == RoomEnter.Success)
+        {
+            CurrentLobby = lobby;
+            KnownHostId = lobby.Owner.Id;
+            ForceRosterUpdate();
+            StateManager.Instance.ChangeState(new CharacterSelectState(Game1.Instance, StateManager.Instance));
         }
     }
 
@@ -85,16 +129,21 @@ public static class SteamManager
             CurrentLobby = null;
             KnownHostId = null;
             ActiveLobbyMembers.Clear();
+            ActiveLobbyNames.Clear();
         }
     }
 
-    private static async void OnGameLobbyJoinRequested(Lobby lobby, SteamId friendId)
+    private static void ForceRosterUpdate()
     {
-        if (await lobby.Join() == RoomEnter.Success)
+        if (CurrentLobby is { } activeLobby)
         {
-            CurrentLobby = lobby;
-            KnownHostId = lobby.Owner.Id;
-            StateManager.Instance.ChangeState(new CharacterSelectState(Game1.Instance, StateManager.Instance));
+            ActiveLobbyMembers.Clear();
+            ActiveLobbyNames.Clear();
+            foreach (var member in activeLobby.Members)
+            {
+                ActiveLobbyMembers.Add(member.Id.Value);
+                ActiveLobbyNames[member.Id.Value] = member.Name;
+            }
         }
     }
 
@@ -104,14 +153,31 @@ public static class SteamManager
         SteamClient.RunCallbacks();
         SteamAvatarCache.Update();
 
-        if (CurrentLobby is { } activeLobby && KnownHostId is { } hostId)
+        if ((DateTime.UtcNow - _lastLobbyPoll).TotalSeconds > 1.0)
         {
-            ActiveLobbyMembers.Clear();
-            foreach (var member in activeLobby.Members) ActiveLobbyMembers.Add(member.Id.Value);
+            _lastLobbyPoll = DateTime.UtcNow;
 
-            if (activeLobby.Owner.Id != hostId) LeaveLobby();
+            if (CurrentLobby is { } activeLobby && KnownHostId is { } hostId)
+            {
+                ActiveLobbyMembers.Clear();
+                ActiveLobbyNames.Clear();
+                bool hostStillPresent = false;
+
+                foreach (var member in activeLobby.Members)
+                {
+                    ActiveLobbyMembers.Add(member.Id.Value);
+                    ActiveLobbyNames[member.Id.Value] = member.Name;
+                    if (member.Id == hostId) hostStillPresent = true;
+                }
+
+                if (!hostStillPresent) LeaveLobby();
+            }
+            else
+            {
+                ActiveLobbyMembers.Clear();
+                ActiveLobbyNames.Clear();
+            }
         }
-        else ActiveLobbyMembers.Clear();
     }
 
     public static void Shutdown()

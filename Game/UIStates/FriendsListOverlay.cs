@@ -63,7 +63,6 @@ public class FriendsListOverlay
         }
     }
 
-    // ARCHITECTURE FIX: Passed input explicitly to prevent parent menus from destroying the click
     public void Update(Point mousePos, bool isClicked)
     {
         if (!IsVisible) return;
@@ -84,7 +83,8 @@ public class FriendsListOverlay
                 _friendButtons[i].Icon = SteamAvatarCache.GetAvatar(friend.Id);
                 _friendButtons[i].Bounds = new Rectangle(startX + 20, startY + 40 + (i * 60), width - 40, 50);
 
-                if (SteamManager.CurrentLobby.HasValue && SteamManager.CurrentLobby.Value.Members.Any(m => m.Id == friend.Id))
+                // ARCHITECTURE FIX: Zero-Allocation Lookup. Uses cached HashMap instead of generating a LINQ Enumerator.
+                if (SteamManager.CurrentLobby.HasValue && SteamManager.ActiveLobbyMembers.Contains(friend.Id.Value))
                 {
                     _friendButtons[i].Text = friend.Name + " (In Lobby)";
                     _friendButtons[i].IsEnabled = false;

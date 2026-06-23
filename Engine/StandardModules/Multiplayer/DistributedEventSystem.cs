@@ -5,6 +5,7 @@ using Steamworks;
 using MemoryPack;
 using MyGame.Engine.Platform;
 using MyGame.Engine.StandardModules.Combat;
+using MyGame.Game.Core;
 
 namespace MyGame.Engine.StandardModules.Multiplayer;
 
@@ -28,9 +29,9 @@ public static class DistributedEventSystem
             });
     }
 
-    public static void BroadcastAndApplyEvent(ulong targetNetId, byte eventType, int intPayload = 0, float floatPayload = 0f)
+    public static void BroadcastAndApplyEvent(ulong targetNetId, byte eventType, int intPayload = 0, float floatPayload = 0f, ulong ulongPayload = 0)
     {
-        ApplyEventLocally(targetNetId, eventType, intPayload, floatPayload);
+        ApplyEventLocally(targetNetId, eventType, intPayload, floatPayload, ulongPayload);
 
         if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue) return;
 
@@ -39,7 +40,8 @@ public static class DistributedEventSystem
             TargetNetworkId = targetNetId,
             EventType = eventType,
             IntPayload = intPayload,
-            FloatPayload = floatPayload
+            FloatPayload = floatPayload,
+            UlongPayload = ulongPayload
         };
 
         _bufferWriter ??= new ArrayBufferWriter<byte>(128);
@@ -56,32 +58,44 @@ public static class DistributedEventSystem
         if (_reusableBuffer.Length < packetLength) Array.Resize(ref _reusableBuffer, packetLength * 2);
         _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-        foreach (var member in SteamManager.CurrentLobby.Value.Members)
+        ulong localId = SteamClient.SteamId.Value;
+        foreach (var memberId in SteamManager.ActiveLobbyMembers)
         {
-            if (member.Id != SteamClient.SteamId)
+            if (memberId != localId)
             {
-                SteamNetworking.SendP2PPacket(member.Id, _reusableBuffer, packetLength, 1, P2PSend.Reliable);
+                SteamNetworking.SendP2PPacket(memberId, _reusableBuffer, packetLength, 1, P2PSend.Reliable);
             }
         }
     }
 
-    private static void ApplyEventLocally(ulong targetNetId, byte eventType, int intPayload, float floatPayload)
+    private static void ApplyEventLocally(ulong targetNetId, byte eventType, int intPayload, float floatPayload, ulong ulongPayload)
     {
-        Entity? target = NetworkRegistry.GetEntity(targetNetId);
-        if (target.HasValue && target.Value.IsAlive())
+        Entity target = NetworkRegistry.GetEntity(targetNetId);
+        if (target.Id != 0 && target.IsAlive())
         {
-            Entity entity = target.Value;
-
             if (eventType == (byte)GameEventType.Despawn)
             {
-                entity.Destruct();
+                target.Destruct();
                 return;
             }
 
-            if (eventType == (byte)GameEventType.Damage && entity.Has<BaseCombatComponents.Health>())
+            if (eventType == (byte)GameEventType.Damage && target.Has<BaseCombatComponents.Health>())
             {
-                ref var health = ref entity.GetMut<BaseCombatComponents.Health>();
+                ref var health = ref target.GetMut<BaseCombatComponents.Health>();
                 health.Current -= intPayload;
+            }
+
+            if (eventType == (byte)GameEventType.InteractSwitch && target.Has<WorldMark>())
+            {
+                ref var mark = ref target.GetMut<WorldMark>();
+                mark.InteractionState = intPayload;
+                if (intPayload > 0) target.Remove<InteractableTag>();
+            }
+
+            // ARCHITECTURE FIX: Instantly overrides NetworkOwner to allow Guests to broadcast vehicle logic
+            if (eventType == (byte)GameEventType.ClaimAuthority && target.Has<NetworkOwner>())
+            {
+                target.Set(new NetworkOwner { Value = ulongPayload });
             }
         }
     }

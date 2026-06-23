@@ -2,52 +2,50 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
-using MyGame.Engine.Platform;
 using MyGame.Game.Core;
 
 namespace MyGame.Engine.StandardModules.Rendering2D;
 
 public static class PlaceholderPlayerRenderer
 {
-	private static Query<Position, PreviousPosition, CharacterClass, FacingDirection> _playerQuery;
-	private static SpriteBatch _batchCache = null!;
-	private static float _alphaCache;
+	private static Query<Position, PreviousPosition, CharacterClass, FacingDirection, PhysicsDimension> _playerQuery;
 
 	public static void Initialize(World world)
 	{
-		_playerQuery = world.QueryBuilder<Position, PreviousPosition, CharacterClass, FacingDirection>().Build();
+		_playerQuery = world.QueryBuilder<Position, PreviousPosition, CharacterClass, FacingDirection, PhysicsDimension>().Build();
 	}
 
-	public static void Draw(SpriteBatch spriteBatch, float alpha)
+	public static void Draw(SpriteBatch spriteBatch, float alpha, string activeDimension)
 	{
-		_batchCache = spriteBatch;
-		_alphaCache = alpha;
-
-		_playerQuery.Each((Entity e, ref Position pos, ref PreviousPosition prevPos, ref CharacterClass cClass, ref FacingDirection facing) =>
+		_playerQuery.Each((Entity e, ref Position pos, ref PreviousPosition prevPos, ref CharacterClass cClass, ref FacingDirection facing, ref PhysicsDimension dim) =>
 		{
+			if (dim.Name != activeDimension) return;
+
 			Color renderColor = cClass.Id == 0 ? Color.Orange : Color.Cyan;
 			if (e.Has<RemotePlayerTag>()) renderColor = Color.LightSkyBlue;
 
-			float renderX = MathHelper.Lerp(prevPos.X, pos.X, _alphaCache);
-			float renderY = MathHelper.Lerp(prevPos.Y, pos.Y, _alphaCache);
+			// ARCHITECTURE FIX: Floating point precision maintained for perfectly smooth 144Hz movement
+			float renderX = MathHelper.Lerp(prevPos.X, pos.X, alpha);
+			float renderY = MathHelper.Lerp(prevPos.Y, pos.Y, alpha);
+			Vector2 drawPos = new Vector2(renderX, renderY);
 
 			SpriteEffects fx = facing.Value < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
-			// ARCHITECTURE FIX: Render footprint dynamically adapts to the ECS Perspective Tag
-			Rectangle drawRect = e.Has<TopDownTag>()
-				? new Rectangle((int)renderX - 8, (int)renderY - 8, 8, 8)   // Top-Down Square
-				: new Rectangle((int)renderX - 5, (int)renderY - 12, 10, 24); // Sidescroller Capsule
+			Vector2 origin;
+			Vector2 scale;
 
-			_batchCache.Draw(
-				AssetManager.WhitePixel,
-				drawRect,
-				null,
-				renderColor,
-				0f,
-				Vector2.Zero,
-				fx,
-				0f
-			);
+			if (e.Has<TopDownTag>())
+			{
+				origin = new Vector2(0.5f, 0.5f); // Center of a 1x1 pixel
+				scale = new Vector2(8f, 8f);
+			}
+			else
+			{
+				origin = new Vector2(0.5f, 0.5f);
+				scale = new Vector2(10f, 24f);
+			}
+
+			spriteBatch.Draw(AssetManager.WhitePixel, drawPos, null, renderColor, 0f, origin, scale, fx, 0f);
 		});
 	}
 }

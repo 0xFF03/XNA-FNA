@@ -46,6 +46,8 @@ public static class ProjectileFactory
             .Set(new BaseCombatComponents.Damage { Amount = 10 })
             .Set(new NetworkId { Value = netId })
             .Set(new NetworkOwner { Value = ownerId })
+            // ARCHITECTURE FIX: Fired by players, so it is inherently friendly.
+            .Set(new BaseCombatComponents.CombatAlignment { Value = BaseCombatComponents.Alignment.Friendly })
             .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody });
 
         NetworkRegistry.Add(netId, e);

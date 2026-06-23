@@ -21,13 +21,12 @@ public static class WorldSyncSystem
 
         var snapshots = new List<EntitySnapshot>();
 
-        // Gather all live dynamic characters
         var syncQuery = world.QueryBuilder<Position, NetworkId, NetworkOwner, PhysicsDimension>().Build();
         syncQuery.Each((Entity e, ref Position pos, ref NetworkId netId, ref NetworkOwner owner, ref PhysicsDimension dimension) =>
         {
             if (owner.Value == newPlayerId) return;
 
-            byte type = 0; // 0 = Player Character Proxy
+            byte type = 0;
             int hp = e.Has<BaseCombatComponents.Health>() ? e.Get<BaseCombatComponents.Health>().Current : 100;
             int dir = e.Has<FacingDirection>() ? e.Get<FacingDirection>().Value : 1;
 
@@ -44,25 +43,22 @@ public static class WorldSyncSystem
             });
         });
 
-        // ARCHITECTURE FIX: Historical Catch-Up Sync processing loop.
-        // Gathers all permanent world marks left by past interactions and streams them to late-joiners.
-        var marksQuery = world.QueryBuilder<WorldMark>().Build();
-        marksQuery.Each((Entity e, ref WorldMark mark) =>
+        var marksQuery = world.QueryBuilder<Position, WorldMark>().Build();
+        marksQuery.Each((Entity e, ref Position pos, ref WorldMark mark) =>
         {
-            if (mark.InteractionState != 0) // Only synchronize altered states
+            // ARCHITECTURE FIX: Flawless Spatial Catch-Up.
+            // Transmits actual X and Y coordinates. Interaction state is safely packed into Health.
+            snapshots.Add(new EntitySnapshot
             {
-                snapshots.Add(new EntitySnapshot
-                {
-                    NetworkId = e.Id,
-                    EntityType = 255, // 255 reserved explicitly for structural World Marks
-                    X = mark.InteractionState, // Store state directly inside numeric payload slots
-                    Y = 0,
-                    Health = 0,
-                    FacingDirection = 0,
-                    OwnerSteamId = 0,
-                    TargetPhysicsWorld = mark.UniqueMarkId // Store target marker label
-                });
-            }
+                NetworkId = e.Id,
+                EntityType = 255,
+                X = pos.X,
+                Y = pos.Y,
+                Health = mark.InteractionState,
+                FacingDirection = 0,
+                OwnerSteamId = 0,
+                TargetPhysicsWorld = mark.UniqueMarkId
+            });
         });
 
         if (snapshots.Count == 0) return;

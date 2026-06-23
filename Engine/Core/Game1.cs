@@ -71,8 +71,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         spriteBatch = new SpriteBatch(GraphicsDevice);
         AssetManager.Initialize(GraphicsDevice, spriteBatch);
         SettingsManager.Initialize(this, graphics);
-
-        SaveManager.Initialize();
+        SaveManager.Initialize(EcsWorld);
 
         try { AssetManager.LoadFont("Fonts/DefaultFont.ttf"); }
         catch (System.Exception ex) { EngineLogger.LogError("Font Load Failed", ex); }
@@ -87,6 +86,7 @@ public class Game1 : Microsoft.Xna.Framework.Game
         AltitudeSystem.Register(EcsWorld);
         DimensionTransferSystem.Register(EcsWorld);
         InteractionSystem.Register(EcsWorld);
+        PhysicsWorldManager.Register(EcsWorld);
 
         NetworkRegistry.Register(EcsWorld);
         NetworkReceiverSystem.Register(EcsWorld);
@@ -97,11 +97,13 @@ public class Game1 : Microsoft.Xna.Framework.Game
         ShooterHitDetection.Register(EcsWorld);
         DistributedEventSystem.Register(EcsWorld);
 
+        SessionProgressionSystem.Register(EcsWorld);
+        LevelManager.Initialize(EcsWorld);
+
         TileMapRenderer.Initialize(EcsWorld, spriteBatch);
-        PlaceholderPlayerRenderer.Initialize(EcsWorld);
-        PlaceholderProjectileRenderer.Initialize(EcsWorld);
 
         stateManager.ChangeState(new MainMenuState(this, stateManager));
+        SteamManager.CheckCommandLineInvites();
     }
 
     protected override void Update(GameTime gameTime)
@@ -111,20 +113,23 @@ public class Game1 : Microsoft.Xna.Framework.Game
         SteamManager.Update();
         NetworkRouter.RouteControlPackets();
 
-        // Gathers inputs at unlimited hardware framerate
         InputManager.Update();
 
         _timeAccumulator += gameTime.ElapsedGameTime.TotalSeconds;
         if (_timeAccumulator > LogicTickRate * 10) _timeAccumulator = LogicTickRate * 10;
 
+        bool logicExecuted = false;
+
         while (_timeAccumulator >= LogicTickRate)
         {
-           stateManager.Update((float)LogicTickRate);
+            stateManager.Update((float)LogicTickRate);
+            _timeAccumulator -= LogicTickRate;
+            logicExecuted = true;
+        }
 
-           // ARCHITECTURE FIX: Securely flushes inputs ONLY after logic has processed them
-           InputManager.PostLogicUpdate();
-
-           _timeAccumulator -= LogicTickRate;
+        if (logicExecuted)
+        {
+            InputManager.PostLogicUpdate();
         }
 
         base.Update(gameTime);

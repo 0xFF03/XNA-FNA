@@ -4,6 +4,7 @@ using Flecs.NET.Core;
 using Steamworks;
 using MemoryPack;
 using MyGame.Engine.Platform;
+using MyGame.Engine.StandardModules.Physics2D;
 using MyGame.Game.Core;
 
 namespace MyGame.Engine.StandardModules.Multiplayer;
@@ -15,22 +16,27 @@ public static class NetworkBroadcastSystem
 
     public static void Register(World world)
     {
-        // ARCHITECTURE FIX: Query now includes NetworkOwner and drops LocalPlayerTag restriction
         world.System<Position, Velocity, PreviousVelocity, FacingDirection, NetworkSequence, NetworkId, PhysicsDimension, NetworkOwner>("NetworkBroadcastSystem")
             .Kind(Ecs.PostUpdate)
             .Each((Iter it, int i, ref Position pos, ref Velocity velocity, ref PreviousVelocity prevVelocity, ref FacingDirection facing, ref NetworkSequence seq, ref NetworkId netId, ref PhysicsDimension dimension, ref NetworkOwner owner) =>
             {
                 if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue) return;
 
-                // Only broadcast entities we have explicit authority over (Local Player, Controlled Vehicles)
                 if (owner.Value != SteamClient.SteamId) return;
+
+                // ARCHITECTURE FIX: Never broadcast logic for entities residing in sleeping dimensions.
+                if (!PhysicsWorldManager.ActiveDimensions.Contains(dimension.Name)) return;
 
                 seq.TimeSinceLastPacket += it.DeltaTime();
 
                 bool velocityChanged = MathF.Abs(velocity.X - prevVelocity.X) > 0.01f ||
                                        MathF.Abs(velocity.Y - prevVelocity.Y) > 0.01f;
 
-                if (velocityChanged || seq.TimeSinceLastPacket >= 0.05f)
+                bool isMoving = MathF.Abs(velocity.X) > 0.01f || MathF.Abs(velocity.Y) > 0.01f;
+
+                float broadcastInterval = isMoving ? 0.05f : 1.0f;
+
+                if (velocityChanged || seq.TimeSinceLastPacket >= broadcastInterval)
                 {
                     seq.LatestSequence++;
                     seq.TimeSinceLastPacket = 0f;
@@ -61,11 +67,12 @@ public static class NetworkBroadcastSystem
                     if (_reusableBuffer.Length < totalLength) Array.Resize(ref _reusableBuffer, totalLength * 2);
                     _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-                    foreach (var member in SteamManager.CurrentLobby.Value.Members)
+                    ulong localId = SteamClient.SteamId.Value;
+                    foreach (var memberId in SteamManager.ActiveLobbyMembers)
                     {
-                        if (member.Id != SteamClient.SteamId)
+                        if (memberId != localId)
                         {
-                            SteamNetworking.SendP2PPacket(member.Id, _reusableBuffer, totalLength, 0, P2PSend.Unreliable);
+                            SteamNetworking.SendP2PPacket(memberId, _reusableBuffer, totalLength, 0, P2PSend.Unreliable);
                         }
                     }
 

@@ -14,7 +14,6 @@ public struct LocalPlayerTag { }
 public struct RemotePlayerTag { }
 public struct MatchEntityTag { }
 
-// --- VEHICLE & SPACE COMPONENTS ---
 [Flags]
 public enum AltitudeLayer : ushort
 {
@@ -28,15 +27,17 @@ public struct Altitude { public AltitudeLayer Current; }
 public struct HelmControl { public Entity ControlledVehicle; }
 public struct DimensionTransferRequest { public string TargetDimension; public float SpawnX; public float SpawnY; }
 
-// --- REUSABLE INTERACTION COMPONENTS ---
 public struct InteractableTag { }
 public struct PortalComponent { public string DestinationDimension; }
+
+// ARCHITECTURE FIX: Multi-Seat station definitions isolated clearly
 public struct PilotSeatComponent { }
+public struct GunnerSeatComponent { }
+
 public struct ShipVehicleComponent { public string TextureName; public Microsoft.Xna.Framework.Vector2 DoorLocalOffset; }
 
-// --- PERSISTENT INTERACTION MARKS ---
 public struct WorldMark
 {
 	public string UniqueMarkId;
-	public int InteractionState; // 0 = Default, 1 = Opened/Destroyed/Triggered
+	public int InteractionState;
 }

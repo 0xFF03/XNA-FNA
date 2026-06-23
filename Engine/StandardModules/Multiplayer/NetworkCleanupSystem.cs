@@ -13,16 +13,13 @@ public static class NetworkCleanupSystem
 			.Interval(1.0f)
 			.Each((Iter it, int row, ref NetworkOwner owner, ref NetworkId netId) =>
 			{
-				if (!SteamManager.IsSteamActive) return;
+				// ARCHITECTURE FIX: Abort sweep if we are playing Solo/Offline
+				if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue) return;
+
+				// If it's owned by the local client (or we are host), keep it alive
 				if (owner.Value == SteamClient.SteamId) return;
 
 				Entity e = it.Entity(row);
-
-				if (!SteamManager.CurrentLobby.HasValue)
-				{
-					e.Destruct();
-					return;
-				}
 
 				if (!SteamManager.ActiveLobbyMembers.Contains(owner.Value.Value))
 				{

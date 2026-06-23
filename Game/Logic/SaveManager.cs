@@ -14,11 +14,15 @@ public static class SaveManager
     public static SaveProfile? CurrentProfile { get; private set; }
     public static bool HasSaves { get; private set; } = false;
 
-    public static void Initialize()
+    private static Query<Position, WorldMark> _marksQuery;
+
+    public static void Initialize(World ecsWorld)
     {
         var db = Game1.Instance.LocalDatabase;
         var collection = db.GetCollection<SaveProfile>(CollectionName);
         HasSaves = collection.Count() > 0;
+
+        _marksQuery = ecsWorld.QueryBuilder<Position, WorldMark>().Build();
     }
 
     public static SaveProfile? GetLatestProfile()
@@ -53,7 +57,7 @@ public static class SaveManager
             CurrentDimension = startingDimension,
             LastSaved = DateTime.Now,
             TotalPlayTimeSeconds = 0,
-            PersistentWorldMarks = new Dictionary<string, int>()
+            PersistentWorldMarks = new Dictionary<string, SavedMarkData>()
         };
 
         CurrentProfile = newSave;
@@ -80,17 +84,13 @@ public static class SaveManager
         if (CurrentProfile == null) return;
 
         CurrentProfile.TotalPlayTimeSeconds += addedPlaytime;
+        var savedMarks = new Dictionary<string, SavedMarkData>(CurrentProfile.PersistentWorldMarks);
 
-        var savedMarks = new Dictionary<string, int>();
-
-        // ARCHITECTURE FIX: Synchronously collect all modified interaction marks inside the active ECS universe.
-        // Other player entities are naturally excluded from serialization.
-        var marksQuery = Game1.Instance.EcsWorld.QueryBuilder<WorldMark>().Build();
-        marksQuery.Each((ref WorldMark mark) =>
+        _marksQuery.Each((ref Position pos, ref WorldMark mark) =>
         {
             if (!string.IsNullOrEmpty(mark.UniqueMarkId))
             {
-                savedMarks[mark.UniqueMarkId] = mark.InteractionState;
+                savedMarks[mark.UniqueMarkId] = new SavedMarkData { State = mark.InteractionState, X = pos.X, Y = pos.Y };
             }
         });
 
@@ -133,25 +133,17 @@ public static class SaveManager
         for (int i = 1; i <= 3; i++)
         {
             var p = collection.FindById(i);
-            if (p == null)
-            {
-                oldestSlot = i;
-                break;
-            }
-            if (p.LastSaved < oldestTime)
-            {
-                oldestTime = p.LastSaved;
-                oldestSlot = i;
-            }
+            if (p == null) { oldestSlot = i; break; }
+            if (p.LastSaved < oldestTime) { oldestTime = p.LastSaved; oldestSlot = i; }
         }
 
-        var savedMarks = new Dictionary<string, int>();
-        var marksQuery = Game1.Instance.EcsWorld.QueryBuilder<WorldMark>().Build();
-        marksQuery.Each((ref WorldMark mark) =>
+        var savedMarks = new Dictionary<string, SavedMarkData>(CurrentProfile.PersistentWorldMarks);
+
+        _marksQuery.Each((ref Position pos, ref WorldMark mark) =>
         {
             if (!string.IsNullOrEmpty(mark.UniqueMarkId))
             {
-                savedMarks[mark.UniqueMarkId] = mark.InteractionState;
+                savedMarks[mark.UniqueMarkId] = new SavedMarkData { State = mark.InteractionState, X = pos.X, Y = pos.Y };
             }
         });
 

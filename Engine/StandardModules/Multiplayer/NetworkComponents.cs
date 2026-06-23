@@ -6,7 +6,8 @@ public enum GameEventType : byte
 {
 	Damage,
 	InteractSwitch,
-	Despawn
+	Despawn,
+	ClaimAuthority // Native event allowing dynamic take-overs of specific entities (seats)
 }
 
 public struct NetworkOwner

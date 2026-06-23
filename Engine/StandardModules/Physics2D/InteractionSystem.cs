@@ -3,17 +3,23 @@ using Flecs.NET.Core;
 using Microsoft.Xna.Framework;
 using MyGame.Engine.Platform;
 using MyGame.Engine.Core;
+using Steamworks;
+using MyGame.Engine.StandardModules.Multiplayer;
 using MyGame.Game.Core;
 
 namespace MyGame.Engine.StandardModules.Physics2D;
 
 public static class InteractionSystem
 {
-    // ARCHITECTURE FIX: Fully qualified name prevents Aether/Flecs 'World' ambiguity
+    private static Query<ShipVehicleComponent, PortalComponent, PhysicsDimension> _vehicleQuery;
+
     public static void Register(Flecs.NET.Core.World world)
     {
         var portalQuery = world.QueryBuilder<Position, PortalComponent>().Build();
         var seatQuery = world.QueryBuilder<Position>().With<PilotSeatComponent>().Build();
+        var interactiveQuery = world.QueryBuilder<Position, WorldMark, NetworkId>().With<InteractableTag>().Build();
+
+        _vehicleQuery = world.QueryBuilder<ShipVehicleComponent, PortalComponent, PhysicsDimension>().Build();
 
         world.System<Position, LocalInput>("PlayerInteractionInputSystem")
             .Kind(Ecs.PreUpdate)
@@ -29,6 +35,11 @@ public static class InteractionSystem
                     if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.IsAlive())
                     {
                         helm.ControlledVehicle.Remove<LocalInput>();
+
+                        // ARCHITECTURE FIX: Relinquish authority when stepping out of the pilot seat
+                        ulong hostId = SteamManager.GetLocalOrHostId();
+                        ulong targetNetId = helm.ControlledVehicle.Get<NetworkId>().Value;
+                        DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, hostId);
                     }
 
                     player.Remove<HelmControl>();
@@ -70,8 +81,8 @@ public static class InteractionSystem
                     player.Set(new DimensionTransferRequest
                     {
                         TargetDimension = destDimension,
-                        SpawnX = 120f,
-                        SpawnY = 120f
+                        SpawnX = px,
+                        SpawnY = py
                     });
                     InputManager.ResetState();
                     return;
@@ -79,6 +90,7 @@ public static class InteractionSystem
 
                 bool foundSeat = false;
                 float closestSeatDist = 28f;
+                Entity targetedVehicle = new Entity();
 
                 seatQuery.Each((ref Position sPos) =>
                 {
@@ -92,19 +104,48 @@ public static class InteractionSystem
 
                 if (foundSeat)
                 {
-                    Entity vehicle = world.Lookup("ActiveSpaceshipExterior");
+                    string currentDimension = player.Get<PhysicsDimension>().Name;
 
-                    if (vehicle.Id == 0 || !vehicle.IsAlive())
+                    _vehicleQuery.Each((Entity vEnt, ref ShipVehicleComponent vComp, ref PortalComponent vPortal, ref PhysicsDimension vDim) =>
                     {
-                        vehicle = world.Entity("ActiveSpaceshipExterior")
-                            .Add<TopDownTag>()
-                            .Set(new Position { X = px, Y = py })
-                            .Set(new Velocity { X = 0, Y = 0 })
-                            .Set(new MovementCapabilities { MoveSpeed = 12f, JumpForce = 0 });
-                    }
+                        if (vPortal.DestinationDimension == currentDimension)
+                        {
+                            targetedVehicle = vEnt;
+                        }
+                    });
 
-                    player.Set(new HelmControl { ControlledVehicle = vehicle });
-                    EngineLogger.Log("Player entered the pilot seat and took helm control.", "SYSTEM");
+                    if (targetedVehicle.Id != 0 && targetedVehicle.IsAlive())
+                    {
+                        targetedVehicle.Add<TopDownTag>();
+                        player.Set(new HelmControl { ControlledVehicle = targetedVehicle });
+
+                        // ARCHITECTURE FIX: Broadcast to the lobby that YOU own the movement of this specific ship now
+                        ulong myId = SteamManager.GetLocalOrHostId();
+                        ulong targetNetId = targetedVehicle.Get<NetworkId>().Value;
+                        DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, myId);
+
+                        EngineLogger.Log("Player entered the pilot seat and claimed helm authority.", "SYSTEM");
+                        InputManager.ResetState();
+                        return;
+                    }
+                }
+
+                bool foundGeneric = false;
+                float closestGenericDist = 28f;
+
+                interactiveQuery.Each((Entity genEnt, ref Position gPos, ref WorldMark mark, ref NetworkId netId) =>
+                {
+                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(gPos.X, gPos.Y));
+                    if (dist < closestGenericDist && !foundGeneric)
+                    {
+                        int newState = mark.InteractionState == 0 ? 1 : 0;
+                        DistributedEventSystem.BroadcastAndApplyEvent(netId.Value, (byte)GameEventType.InteractSwitch, newState);
+                        foundGeneric = true;
+                    }
+                });
+
+                if (foundGeneric)
+                {
                     InputManager.ResetState();
                 }
             });
