@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using LiteDB;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -20,7 +19,6 @@ public static class SettingsManager
 {
     private static Game1 _game = null!;
     private static GraphicsDeviceManager _graphics = null!;
-    private static ILiteCollection<EngineSettings> _settingsCollection = null!;
 
     public static EngineSettings CurrentSettings { get; private set; } = new EngineSettings();
 
@@ -28,16 +26,10 @@ public static class SettingsManager
     {
         _game = game;
         _graphics = graphics;
-        _settingsCollection = game.LocalDatabase.GetCollection<EngineSettings>("settings");
 
-        var savedSettings = _settingsCollection.FindById(1);
-        if (savedSettings == null)
-        {
-            savedSettings = new EngineSettings { Id = 1 };
-            _settingsCollection.Insert(savedSettings);
-        }
+        // ARCHITECTURE FIX: Severed LiteDB disk dependency for RAM-only dual-instance testing
+        CurrentSettings = new EngineSettings { Id = 1 };
 
-        CurrentSettings = savedSettings;
         ApplyDisplaySettings(CurrentSettings.Width, CurrentSettings.Height, CurrentSettings.Fullscreen, CurrentSettings.VSync, CurrentSettings.TargetFPS);
     }
 
@@ -56,8 +48,6 @@ public static class SettingsManager
         CurrentSettings.Fullscreen = fullscreen;
         CurrentSettings.VSync = vsync;
         CurrentSettings.TargetFPS = targetFps;
-
-        _settingsCollection.Update(CurrentSettings);
 
         bool needsApply = false;
 

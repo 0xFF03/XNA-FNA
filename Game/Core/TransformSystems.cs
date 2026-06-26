@@ -6,7 +6,8 @@ namespace MyGame.Game.Core;
 
 public static class TransformSystems
 {
-	public static void Register(World world)
+	// ARCHITECTURE FIX: Strictly defined as Flecs.NET.Core.World
+	public static void Register(Flecs.NET.Core.World world)
 	{
 		world.System<Position, PreviousPosition>("StorePreviousPositionSystem")
 			.Kind(Ecs.PreUpdate)
@@ -14,6 +15,7 @@ public static class TransformSystems
 			{
 				prevPos.X = pos.X;
 				prevPos.Y = pos.Y;
+				prevPos.Rotation = pos.Rotation;
 			});
 
 		world.Observer<PhysicsComponents.PhysicsBody>("PhysicsBodyCleanupObserver")

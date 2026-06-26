@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Buffers;
 using Flecs.NET.Core;
-using Steamworks;
 using MemoryPack;
-using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Physics2D;
 using MyGame.Game.Core;
 
@@ -20,11 +19,10 @@ public static class NetworkBroadcastSystem
             .Kind(Ecs.PostUpdate)
             .Each((Iter it, int i, ref Position pos, ref Velocity velocity, ref PreviousVelocity prevVelocity, ref FacingDirection facing, ref NetworkSequence seq, ref NetworkId netId, ref PhysicsDimension dimension, ref NetworkOwner owner) =>
             {
-                if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue) return;
+                var net = NetworkServiceLocator.Provider;
+                if (!net.IsActive || !net.IsInLobby) return;
 
-                if (owner.Value != SteamClient.SteamId) return;
-
-                // ARCHITECTURE FIX: Never broadcast logic for entities residing in sleeping dimensions.
+                if (owner.Value != net.LocalUserId) return;
                 if (!PhysicsWorldManager.ActiveDimensions.Contains(dimension.Name)) return;
 
                 seq.TimeSinceLastPacket += it.DeltaTime();
@@ -46,6 +44,7 @@ public static class NetworkBroadcastSystem
                         SequenceNumber = seq.LatestSequence,
                         X = pos.X,
                         Y = pos.Y,
+                        Rotation = pos.Rotation,
                         Vx = velocity.X,
                         Vy = velocity.Y,
                         FacingDirection = facing.Value,
@@ -67,14 +66,7 @@ public static class NetworkBroadcastSystem
                     if (_reusableBuffer.Length < totalLength) Array.Resize(ref _reusableBuffer, totalLength * 2);
                     _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-                    ulong localId = SteamClient.SteamId.Value;
-                    foreach (var memberId in SteamManager.ActiveLobbyMembers)
-                    {
-                        if (memberId != localId)
-                        {
-                            SteamNetworking.SendP2PPacket(memberId, _reusableBuffer, totalLength, 0, P2PSend.Unreliable);
-                        }
-                    }
+                    net.BroadcastPacket(_reusableBuffer, totalLength, 0, reliable: false);
 
                     prevVelocity.X = velocity.X;
                     prevVelocity.Y = velocity.Y;

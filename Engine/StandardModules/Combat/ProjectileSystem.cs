@@ -3,8 +3,7 @@ using System.Buffers;
 using Flecs.NET.Core;
 using MyGame.Engine.StandardModules.Multiplayer;
 using MyGame.Engine.StandardModules.Physics2D;
-using MyGame.Engine.Platform;
-using Steamworks;
+using MyGame.Engine.Platform.Networking;
 using MemoryPack;
 using MyGame.Prefabs;
 using MyGame.Game.Core;
@@ -22,15 +21,13 @@ public static class ProjectileSystem
             .Event(Ecs.OnSet)
             .Each((Iter it, int i, ref BaseCombatComponents.ProjectileSpawnRequest req) =>
             {
-                // ARCHITECTURE FIX: Call the newly generalized Engine-level ID generator
+                var net = NetworkServiceLocator.Provider;
                 ulong netId = NetworkIdGenerator.GetNextNetworkId();
+                ulong ownerId = net.IsActive ? net.LocalUserId : 0;
 
-                ulong ownerId = SteamManager.IsSteamActive ? SteamClient.SteamId.Value : 0;
-                SteamId safeOwnerId = SteamManager.IsSteamActive ? SteamClient.SteamId : (SteamId)0;
+                ProjectileFactory.Create(it.World(), req.StartX, req.StartY, req.VelocityX, req.VelocityY, netId, ownerId, req.TargetPhysicsWorld);
 
-                ProjectileFactory.Create(it.World(), req.StartX, req.StartY, req.VelocityX, req.VelocityY, netId, safeOwnerId, req.TargetPhysicsWorld);
-
-                if (SteamManager.IsSteamActive && SteamManager.CurrentLobby.HasValue)
+                if (net.IsActive && net.IsInLobby)
                 {
                     var packet = new ProjectileSpawnPacket
                     {
@@ -57,38 +54,25 @@ public static class ProjectileSystem
                     if (_reusableBuffer.Length < totalLength) Array.Resize(ref _reusableBuffer, totalLength * 2);
                     _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-                    foreach (var member in SteamManager.CurrentLobby.Value.Members)
-                    {
-                        if (member.Id.Value != ownerId)
-                        {
-                            SteamNetworking.SendP2PPacket(member.Id, _reusableBuffer, totalLength, 1, P2PSend.Reliable);
-                        }
-                    }
+                    net.BroadcastPacket(_reusableBuffer, totalLength, 1, reliable: true);
                 }
 
                 it.Entity(i).Destruct();
             });
 
-        world.System<PhysicsComponents.PhysicsBody, Position, BaseCombatComponents.Lifetime>("ProjectileUpdateSystem")
+        world.System<BaseCombatComponents.Lifetime>("ProjectileUpdateSystem")
             .Kind(Ecs.PreUpdate)
             .With<BaseCombatComponents.ProjectileTag>()
-            .Each((Iter it, int i, ref PhysicsComponents.PhysicsBody pBody, ref Position pos, ref BaseCombatComponents.Lifetime life) =>
+            .Each((Iter it, int i, ref BaseCombatComponents.Lifetime life) =>
             {
                 Entity e = it.Entity(i);
 
+                // ARCHITECTURE FIX: Replaced hardcoded '1f / 60f' with precise DeltaTime
                 life.Remaining -= it.DeltaTime();
 
                 if (life.Remaining <= 0)
                 {
                     e.Destruct();
-                    return;
-                }
-
-                if (pBody.Value != null)
-                {
-                    var body = pBody.Value;
-                    pos.X = body.Position.X * PhysicsSettings.PixelsPerMeter;
-                    pos.Y = body.Position.Y * PhysicsSettings.PixelsPerMeter;
                 }
             });
     }

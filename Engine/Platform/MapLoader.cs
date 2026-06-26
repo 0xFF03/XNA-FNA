@@ -16,8 +16,12 @@ public class LevelData
     public int Width { get; set; }
     public int Height { get; set; }
     public Vector2 SpawnPoint { get; set; } = new Vector2(100, 100);
+    public Vector2 Center => new Vector2(Width / 2f, Height / 2f);
 
     public bool IsTopDown { get; set; } = true;
+
+    // ARCHITECTURE FIX: Tells the rendering pipeline to wrap chunks infinitely
+    public bool IsInfinite { get; set; } = false;
 
     public const int ChunkSize = 256;
     public Dictionary<Point, List<TileRenderData>> TileChunks { get; set; } = new();
@@ -90,7 +94,9 @@ public static class MapLoader
         LevelData roomData = new LevelData
         {
             Width = levelData.PxWidth,
-            Height = levelData.PxHeight
+            Height = levelData.PxHeight,
+            // ARCHITECTURE FIX: Data-driven infinity.
+            IsInfinite = levelIdentifier.Equals("MacroSpace", StringComparison.OrdinalIgnoreCase)
         };
 
         if (levelData.FieldInstances != null)
@@ -112,7 +118,6 @@ public static class MapLoader
 
             if (layer.Type == "IntGrid") ParseCollisions(layer, tempCollisions);
 
-            // ARCHITECTURE FIX: Parse entities, then FORCE the loop to skip the tile-rendering logic below
             if (layer.Type == "Entities")
             {
                 ParseEntities(layer, roomData);
@@ -153,7 +158,6 @@ public static class MapLoader
         }
 
         roomData.Collisions = tempCollisions.ToArray();
-
         return roomData;
     }
 
@@ -215,7 +219,7 @@ public static class MapLoader
                 float spawnY = (float)entity.Px[1];
                 roomData.SpawnPoint = new Vector2(spawnX, spawnY);
             }
-            else if (entity.Identifier == "AirlockDoor" || entity.Identifier == "PilotSeat" || entity.Identifier == "ShipExterior")
+            else if (entity.Identifier == "AirlockDoor" || entity.Identifier == "PilotSeat" || entity.Identifier == "ShipExterior" || entity.Identifier == "Cruiser")
             {
                 roomData.Interactables.Add(entity);
             }

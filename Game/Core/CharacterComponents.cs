@@ -1,5 +1,6 @@
 ﻿using System;
 using Flecs.NET.Core;
+using Microsoft.Xna.Framework;
 
 namespace MyGame.Game.Core;
 
@@ -25,16 +26,48 @@ public enum AltitudeLayer : ushort
 
 public struct Altitude { public AltitudeLayer Current; }
 public struct HelmControl { public Entity ControlledVehicle; }
-public struct DimensionTransferRequest { public string TargetDimension; public float SpawnX; public float SpawnY; }
 
+public struct DimensionTransferRequest
+{
+	public string TargetDimension;
+	public float ExplicitSpawnX;
+	public float ExplicitSpawnY;
+	public bool SnapToInteriorAirlock;
+	public ulong ExitFromVehicleNetId;
+	public string LeavingDimension;
+}
+
+public struct TopologicalTransferTag { public string LeavingDimension; }
 public struct InteractableTag { }
-public struct PortalComponent { public string DestinationDimension; }
 
-// ARCHITECTURE FIX: Multi-Seat station definitions isolated clearly
-public struct PilotSeatComponent { }
-public struct GunnerSeatComponent { }
+public struct PortalComponent
+{
+	public string DestinationDimension;
+	public bool IsVehicleExit;
+	public ulong ParentVehicleNetId;
+}
 
-public struct ShipVehicleComponent { public string TextureName; public Microsoft.Xna.Framework.Vector2 DoorLocalOffset; }
+public struct PilotSeatComponent { public ulong VehicleNetId; }
+public struct GunnerSeatComponent { public ulong VehicleNetId; }
+
+public struct ShipVehicleComponent
+{
+	public string TextureName;
+	public Vector2 DoorLocalOffset;
+	public string InteriorDimensionName;
+}
+
+public struct ShipEngine
+{
+	public float CurrentThrust;
+}
+
+// ARCHITECTURE FIX: Native flight transition tracker
+public struct VehicleFlightState
+{
+	public bool TargetFlying;
+	public float AltitudeRatio; // 0.0 = Landed, 1.0 = Max Altitude
+}
 
 public struct WorldMark
 {

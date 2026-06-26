@@ -1,49 +1,55 @@
 ﻿using System;
-using Steamworks;
-using MyGame.Engine.Platform;
+using MyGame.Engine.Core;
+using MyGame.Engine.Platform.Networking;
 
 namespace MyGame.Engine.StandardModules.Multiplayer;
 
 public static class NetworkRouter
 {
-	public static event Action? OnLobbyMatchStart;
-	public static event Action<SteamId>? OnJoineeReady;
-	public static event Action<SteamId>? OnClientLoadedMap;
+    public static event Action? OnLobbyMatchStart;
+    public static event Action<ulong>? OnJoineeReady;
+    public static event Action<ulong>? OnClientLoadedMap;
+    public static event Action<bool, ulong>? OnPauseStateChanged;
 
-	// ARCHITECTURE FIX: Event now carries sender ID to notify UI who paused the game
-	public static event Action<bool, SteamId>? OnPauseStateChanged;
+    public static void RouteControlPackets()
+    {
+        var net = NetworkServiceLocator.Provider;
+        if (!net.IsActive) return;
 
-	public static void RouteControlPackets()
-	{
-		if (!SteamManager.IsSteamActive) return;
+        while (net.TryReadPacket(2, out var packet))
+        {
+            if (packet.Length > 0)
+            {
+                byte signal = packet.Data[0];
+                ulong senderId = packet.SenderId;
 
-		while (SteamNetworking.IsP2PPacketAvailable(2))
-		{
-			var packetData = SteamNetworking.ReadP2PPacket(2);
-			if (packetData.HasValue && packetData.Value.Data.Length > 0)
-			{
-				byte signal = packetData.Value.Data[0];
-				SteamId senderId = packetData.Value.SteamId;
-
-				switch (signal)
-				{
-					case PacketTypes.LobbyStart:
-						OnLobbyMatchStart?.Invoke();
-						break;
-					case PacketTypes.PlayerReady:
-						OnJoineeReady?.Invoke(senderId);
-						break;
-					case PacketTypes.ClientLoadedMap:
-						OnClientLoadedMap?.Invoke(senderId);
-						break;
-					case PacketTypes.PauseGame:
-						OnPauseStateChanged?.Invoke(true, senderId);
-						break;
-					case PacketTypes.ResumeGame:
-						OnPauseStateChanged?.Invoke(false, senderId);
-						break;
-				}
-			}
-		}
-	}
+                switch (signal)
+                {
+                    case PacketTypes.LobbyStart:
+                        EngineLogger.Log("Received LobbyStart control packet.", "NETWORK");
+                        OnLobbyMatchStart?.Invoke();
+                        break;
+                    case PacketTypes.PlayerReady:
+                        EngineLogger.Log($"Received PlayerReady handshake from {senderId}.", "NETWORK");
+                        OnJoineeReady?.Invoke(senderId);
+                        break;
+                    case PacketTypes.ClientLoadedMap:
+                        EngineLogger.Log($"Received ClientLoadedMap handshake from {senderId}.", "NETWORK");
+                        OnClientLoadedMap?.Invoke(senderId);
+                        break;
+                    case PacketTypes.PauseGame:
+                        EngineLogger.Log($"Received PauseGame command from {senderId}.", "NETWORK");
+                        OnPauseStateChanged?.Invoke(true, senderId);
+                        break;
+                    case PacketTypes.ResumeGame:
+                        EngineLogger.Log($"Received ResumeGame command from {senderId}.", "NETWORK");
+                        OnPauseStateChanged?.Invoke(false, senderId);
+                        break;
+                    default:
+                        EngineLogger.Log($"Received unknown Channel 2 control packet: {signal}", "WARNING");
+                        break;
+                }
+            }
+        }
+    }
 }

@@ -1,5 +1,4 @@
 ﻿using Flecs.NET.Core;
-using Steamworks;
 using nkast.Aether.Physics2D.Dynamics;
 using MyGame.Engine.StandardModules.Multiplayer;
 using MyGame.Engine.StandardModules.Combat;
@@ -13,7 +12,7 @@ namespace MyGame.Prefabs;
 
 public static class ProjectileFactory
 {
-    public static Entity Create(Flecs.NET.Core.World world, float startX, float startY, float velX, float velY, ulong netId, SteamId ownerId, string targetPhysicsWorld = "MacroSpace")
+    public static Entity Create(Flecs.NET.Core.World world, float startX, float startY, float velX, float velY, ulong netId, ulong ownerId, string targetPhysicsWorld = "MacroSpace")
     {
         string entityKey = $"proj_{netId}";
 
@@ -46,9 +45,9 @@ public static class ProjectileFactory
             .Set(new BaseCombatComponents.Damage { Amount = 10 })
             .Set(new NetworkId { Value = netId })
             .Set(new NetworkOwner { Value = ownerId })
-            // ARCHITECTURE FIX: Fired by players, so it is inherently friendly.
             .Set(new BaseCombatComponents.CombatAlignment { Value = BaseCombatComponents.Alignment.Friendly })
-            .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody });
+            .Set(new PhysicsComponents.PhysicsBody { Value = aetherBody })
+            .Set(new PhysicsDimension { Name = targetPhysicsWorld });
 
         NetworkRegistry.Add(netId, e);
         return e;

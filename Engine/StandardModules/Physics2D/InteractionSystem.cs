@@ -3,7 +3,7 @@ using Flecs.NET.Core;
 using Microsoft.Xna.Framework;
 using MyGame.Engine.Platform;
 using MyGame.Engine.Core;
-using Steamworks;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Multiplayer;
 using MyGame.Game.Core;
 
@@ -11,22 +11,21 @@ namespace MyGame.Engine.StandardModules.Physics2D;
 
 public static class InteractionSystem
 {
-    private static Query<ShipVehicleComponent, PortalComponent, PhysicsDimension> _vehicleQuery;
-
     public static void Register(Flecs.NET.Core.World world)
     {
-        var portalQuery = world.QueryBuilder<Position, PortalComponent>().Build();
-        var seatQuery = world.QueryBuilder<Position>().With<PilotSeatComponent>().Build();
-        var interactiveQuery = world.QueryBuilder<Position, WorldMark, NetworkId>().With<InteractableTag>().Build();
+        var portalQuery = world.QueryBuilder<Position, PortalComponent, PhysicsDimension>().Build();
+        var seatQuery = world.QueryBuilder<Position, PhysicsDimension, PilotSeatComponent>().Build();
+        var interactiveQuery = world.QueryBuilder<Position, WorldMark, NetworkId, PhysicsDimension>().With<InteractableTag>().Build();
+        var exteriorShipInteractQuery = world.QueryBuilder<Position, ShipVehicleComponent, PhysicsDimension>().With<InteractableTag>().Build();
 
-        _vehicleQuery = world.QueryBuilder<ShipVehicleComponent, PortalComponent, PhysicsDimension>().Build();
-
-        world.System<Position, LocalInput>("PlayerInteractionInputSystem")
+        world.System<Position, LocalInput, PhysicsDimension>("PlayerInteractionInputSystem")
             .Kind(Ecs.PreUpdate)
             .With<LocalPlayerTag>()
-            .Each((Entity player, ref Position playerPos, ref LocalInput input) =>
+            .Each((Entity player, ref Position playerPos, ref LocalInput input, ref PhysicsDimension playerDim) =>
             {
-                if (!InputManager.IsActionActive(GameActions.Interact)) return;
+                if (!InputManager.ConsumeAction(GameActions.Interact)) return;
+
+                var net = NetworkServiceLocator.Provider;
 
                 if (player.Has<HelmControl>())
                 {
@@ -36,118 +35,126 @@ public static class InteractionSystem
                     {
                         helm.ControlledVehicle.Remove<LocalInput>();
 
-                        // ARCHITECTURE FIX: Relinquish authority when stepping out of the pilot seat
-                        ulong hostId = SteamManager.GetLocalOrHostId();
-                        ulong targetNetId = helm.ControlledVehicle.Get<NetworkId>().Value;
-                        DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, hostId);
+                        if (helm.ControlledVehicle.Has<NetworkId>())
+                        {
+                            ulong hostId = net.HostId ?? net.LocalUserId;
+                            ulong targetNetId = helm.ControlledVehicle.Get<NetworkId>().Value;
+                            DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, hostId);
+                        }
                     }
 
                     player.Remove<HelmControl>();
                     EngineLogger.Log("Player left the helm control.", "SYSTEM");
-                    InputManager.ResetState();
                     return;
                 }
 
                 float px = playerPos.X;
                 float py = playerPos.Y;
+                string currentDim = playerDim.Name;
 
-                bool foundPortal = false;
-                string destDimension = string.Empty;
-                float closestPortalDist = 28f;
+                bool initiatedTransfer = false;
 
-                portalQuery.Each((Entity portalEnt, ref Position pPos, ref PortalComponent pComp) =>
+                exteriorShipInteractQuery.Each((Entity shipEnt, ref Position sPos, ref ShipVehicleComponent sComp, ref PhysicsDimension sDim) =>
                 {
-                    float targetX = pPos.X;
-                    float targetY = pPos.Y;
+                    if (initiatedTransfer || sDim.Name != currentDim) return;
 
-                    if (portalEnt.Has<ShipVehicleComponent>())
+                    // ARCHITECTURE FIX: Cannot board a ship that is currently flying above you
+                    if (shipEnt.Has<VehicleFlightState>() && shipEnt.Get<VehicleFlightState>().AltitudeRatio > 0.1f) return;
+
+                    Vector2 rotatedOffset = Vector2.Transform(sComp.DoorLocalOffset, Matrix.CreateRotationZ(sPos.Rotation));
+                    float doorX = sPos.X + rotatedOffset.X;
+                    float doorY = sPos.Y + rotatedOffset.Y;
+
+                    if (Vector2.DistanceSquared(new Vector2(px, py), new Vector2(doorX, doorY)) < 784f)
                     {
-                        var shipComp = portalEnt.Get<ShipVehicleComponent>();
-                        targetX += shipComp.DoorLocalOffset.X;
-                        targetY += shipComp.DoorLocalOffset.Y;
-                    }
-
-                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(targetX, targetY));
-                    if (dist < closestPortalDist)
-                    {
-                        destDimension = pComp.DestinationDimension;
-                        closestPortalDist = dist;
-                        foundPortal = true;
-                    }
-                });
-
-                if (foundPortal)
-                {
-                    player.Set(new DimensionTransferRequest
-                    {
-                        TargetDimension = destDimension,
-                        SpawnX = px,
-                        SpawnY = py
-                    });
-                    InputManager.ResetState();
-                    return;
-                }
-
-                bool foundSeat = false;
-                float closestSeatDist = 28f;
-                Entity targetedVehicle = new Entity();
-
-                seatQuery.Each((ref Position sPos) =>
-                {
-                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(sPos.X, sPos.Y));
-                    if (dist < closestSeatDist)
-                    {
-                        closestSeatDist = dist;
-                        foundSeat = true;
-                    }
-                });
-
-                if (foundSeat)
-                {
-                    string currentDimension = player.Get<PhysicsDimension>().Name;
-
-                    _vehicleQuery.Each((Entity vEnt, ref ShipVehicleComponent vComp, ref PortalComponent vPortal, ref PhysicsDimension vDim) =>
-                    {
-                        if (vPortal.DestinationDimension == currentDimension)
+                        player.Set(new DimensionTransferRequest
                         {
-                            targetedVehicle = vEnt;
-                        }
-                    });
-
-                    if (targetedVehicle.Id != 0 && targetedVehicle.IsAlive())
-                    {
-                        targetedVehicle.Add<TopDownTag>();
-                        player.Set(new HelmControl { ControlledVehicle = targetedVehicle });
-
-                        // ARCHITECTURE FIX: Broadcast to the lobby that YOU own the movement of this specific ship now
-                        ulong myId = SteamManager.GetLocalOrHostId();
-                        ulong targetNetId = targetedVehicle.Get<NetworkId>().Value;
-                        DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, myId);
-
-                        EngineLogger.Log("Player entered the pilot seat and claimed helm authority.", "SYSTEM");
-                        InputManager.ResetState();
-                        return;
+                            TargetDimension = sComp.InteriorDimensionName,
+                            SnapToInteriorAirlock = true
+                        });
+                        initiatedTransfer = true;
                     }
-                }
+                });
 
-                bool foundGeneric = false;
-                float closestGenericDist = 28f;
+                if (initiatedTransfer) return;
 
-                interactiveQuery.Each((Entity genEnt, ref Position gPos, ref WorldMark mark, ref NetworkId netId) =>
+                portalQuery.Each((Entity portalEnt, ref Position pPos, ref PortalComponent pComp, ref PhysicsDimension pDim) =>
                 {
-                    float dist = Vector2.Distance(new Vector2(px, py), new Vector2(gPos.X, gPos.Y));
-                    if (dist < closestGenericDist && !foundGeneric)
+                    if (initiatedTransfer || pDim.Name != currentDim) return;
+
+                    if (Vector2.DistanceSquared(new Vector2(px, py), new Vector2(pPos.X, pPos.Y)) < 784f)
+                    {
+                        if (pComp.IsVehicleExit && pComp.ParentVehicleNetId != 0)
+                        {
+                            string parentDimension = "MacroSpace";
+                            Entity vehicle = NetworkRegistry.GetEntity(pComp.ParentVehicleNetId);
+
+                            if (vehicle.Id != 0 && vehicle.IsAlive() && vehicle.Has<PhysicsDimension>())
+                            {
+                                // ARCHITECTURE FIX: Immersion interlock. Cannot jump out of the airlock into deep space mid-flight.
+                                if (vehicle.Has<VehicleFlightState>() && vehicle.Get<VehicleFlightState>().AltitudeRatio > 0.1f)
+                                {
+                                    EngineLogger.Log("Cannot exit vehicle mid-flight. You must land first.", "WARNING");
+                                    return;
+                                }
+
+                                parentDimension = vehicle.Get<PhysicsDimension>().Name;
+                            }
+
+                            player.Set(new DimensionTransferRequest
+                            {
+                                TargetDimension = parentDimension,
+                                ExitFromVehicleNetId = pComp.ParentVehicleNetId
+                            });
+                        }
+                        else
+                        {
+                            player.Set(new DimensionTransferRequest
+                            {
+                                TargetDimension = pComp.DestinationDimension,
+                                LeavingDimension = currentDim
+                            });
+                        }
+                        initiatedTransfer = true;
+                    }
+                });
+
+                if (initiatedTransfer) return;
+
+                seatQuery.Each((ref Position sPos, ref PhysicsDimension sDim, ref PilotSeatComponent seat) =>
+                {
+                    if (sDim.Name != currentDim) return;
+
+                    if (Vector2.DistanceSquared(new Vector2(px, py), new Vector2(sPos.X, sPos.Y)) < 784f)
+                    {
+                        Entity targetedVehicle = NetworkRegistry.GetEntity(seat.VehicleNetId);
+
+                        if (targetedVehicle.Id != 0 && targetedVehicle.IsAlive())
+                        {
+                            targetedVehicle.Add<TopDownTag>();
+                            player.Set(new HelmControl { ControlledVehicle = targetedVehicle });
+
+                            if (targetedVehicle.Has<NetworkId>())
+                            {
+                                ulong myId = net.LocalUserId;
+                                ulong targetNetId = targetedVehicle.Get<NetworkId>().Value;
+                                DistributedEventSystem.BroadcastAndApplyEvent(targetNetId, (byte)GameEventType.ClaimAuthority, 0, 0f, myId);
+                            }
+                            return;
+                        }
+                    }
+                });
+
+                interactiveQuery.Each((Entity genEnt, ref Position gPos, ref WorldMark mark, ref NetworkId netId, ref PhysicsDimension iDim) =>
+                {
+                    if (iDim.Name != currentDim) return;
+
+                    if (Vector2.DistanceSquared(new Vector2(px, py), new Vector2(gPos.X, gPos.Y)) < 784f)
                     {
                         int newState = mark.InteractionState == 0 ? 1 : 0;
                         DistributedEventSystem.BroadcastAndApplyEvent(netId.Value, (byte)GameEventType.InteractSwitch, newState);
-                        foundGeneric = true;
                     }
                 });
-
-                if (foundGeneric)
-                {
-                    InputManager.ResetState();
-                }
             });
     }
 }

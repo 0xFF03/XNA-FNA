@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Buffers;
 using Flecs.NET.Core;
-using Steamworks;
 using MemoryPack;
-using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Combat;
 using MyGame.Game.Core;
 
@@ -33,7 +32,8 @@ public static class DistributedEventSystem
     {
         ApplyEventLocally(targetNetId, eventType, intPayload, floatPayload, ulongPayload);
 
-        if (!SteamManager.IsSteamActive || !SteamManager.CurrentLobby.HasValue) return;
+        var net = NetworkServiceLocator.Provider;
+        if (!net.IsActive || !net.IsInLobby) return;
 
         var packet = new DistributedEventPacket
         {
@@ -58,14 +58,7 @@ public static class DistributedEventSystem
         if (_reusableBuffer.Length < packetLength) Array.Resize(ref _reusableBuffer, packetLength * 2);
         _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-        ulong localId = SteamClient.SteamId.Value;
-        foreach (var memberId in SteamManager.ActiveLobbyMembers)
-        {
-            if (memberId != localId)
-            {
-                SteamNetworking.SendP2PPacket(memberId, _reusableBuffer, packetLength, 1, P2PSend.Reliable);
-            }
-        }
+        net.BroadcastPacket(_reusableBuffer, packetLength, 1, reliable: true);
     }
 
     private static void ApplyEventLocally(ulong targetNetId, byte eventType, int intPayload, float floatPayload, ulong ulongPayload)
@@ -92,7 +85,6 @@ public static class DistributedEventSystem
                 if (intPayload > 0) target.Remove<InteractableTag>();
             }
 
-            // ARCHITECTURE FIX: Instantly overrides NetworkOwner to allow Guests to broadcast vehicle logic
             if (eventType == (byte)GameEventType.ClaimAuthority && target.Has<NetworkOwner>())
             {
                 target.Set(new NetworkOwner { Value = ulongPayload });

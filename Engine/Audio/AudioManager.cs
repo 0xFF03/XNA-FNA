@@ -23,7 +23,7 @@ public static class AudioManager
     {
         MediaPlayer.Volume = MasterVolume * MusicVolume;
         SoundEffect.MasterVolume = MasterVolume * SfxVolume;
-        Console.WriteLine("[AudioManager]: Audio subsystem initialized.");
+        EngineLogger.Log("Audio subsystem initialized.", "SYSTEM");
     }
 
     public static void PlaySound(string assetName)
@@ -40,7 +40,13 @@ public static class AudioManager
                 }
             }
 
-            string fullPath = AssetManager.ResolveAssetPath(assetName);
+            string? fullPath = AssetManager.ResolveAssetPath(assetName);
+            if (fullPath == null)
+            {
+                EngineLogger.Log($"Missing audio asset requested: {assetName}.", "ERROR");
+                return;
+            }
+
             using var stream = File.OpenRead(fullPath);
             sfx = SoundEffect.FromStream(stream);
 
@@ -48,12 +54,12 @@ public static class AudioManager
             SoundOrderQueue.Enqueue(assetName);
         }
 
-        sfx.Play(MasterVolume * SfxVolume, 0f, 0f);
+        sfx?.Play(MasterVolume * SfxVolume, 0f, 0f);
     }
 
     public static void PlayMusic(string assetName, bool loop = true)
     {
-        Console.WriteLine($"[AudioManager]: Request to play music -> {assetName}");
+        EngineLogger.Log($"Request to play music -> {assetName}", "SYSTEM");
     }
 
     public static void UnloadAll()

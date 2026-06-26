@@ -34,7 +34,6 @@ public static class EngineLogger
         string timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         int pid = Environment.ProcessId;
 
-        // 4 Dedicated Data Streams
         _mainWriter = new StreamWriter(Path.Combine(logDir, $"main_{timeStamp}_p{pid}.log"), append: true) { AutoFlush = true };
         _networkWriter = new StreamWriter(Path.Combine(logDir, $"network_{timeStamp}_p{pid}.log"), append: true) { AutoFlush = true };
         _errorWriter = new StreamWriter(Path.Combine(logDir, $"error_{timeStamp}_p{pid}.log"), append: true) { AutoFlush = true };
@@ -79,6 +78,18 @@ public static class EngineLogger
         Log($"{message} | Exception: {ex.Message}\n{ex.StackTrace}", "ERROR");
     }
 
+    // ARCHITECTURE FIX: Absolute guarantee that a hard-crash is documented to the hard drive instantly.
+    public static void LogFatalSync(string message, Exception ex)
+    {
+        string formatted = $"[{DateTime.Now:HH:mm:ss.fff}] [FATAL] {message} | Exception: {ex.Message}\n{ex.StackTrace}";
+        Console.WriteLine(formatted);
+
+        _errorWriter?.WriteLine(formatted);
+        _errorWriter?.Flush();
+        _mainWriter?.WriteLine(formatted);
+        _mainWriter?.Flush();
+    }
+
     public static void LogPerformance(string systemName, double elapsedMilliseconds)
     {
         float heapMb = GC.GetTotalMemory(false) / (1024f * 1024f);
@@ -90,7 +101,7 @@ public static class EngineLogger
         if (_logChannel != null)
         {
             _logChannel.Writer.Complete();
-            _writerTask?.Wait();
+            _writerTask?.Wait(2000); // Give it exactly 2 seconds to flush before dying
 
             _mainWriter?.Dispose();
             _networkWriter?.Dispose();

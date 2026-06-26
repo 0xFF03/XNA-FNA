@@ -1,4 +1,5 @@
-﻿using Flecs.NET.Core;
+﻿using System;
+using Flecs.NET.Core;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
@@ -24,9 +25,9 @@ public static class PlaceholderPlayerRenderer
 			Color renderColor = cClass.Id == 0 ? Color.Orange : Color.Cyan;
 			if (e.Has<RemotePlayerTag>()) renderColor = Color.LightSkyBlue;
 
-			// ARCHITECTURE FIX: Floating point precision maintained for perfectly smooth 144Hz movement
-			float renderX = MathHelper.Lerp(prevPos.X, pos.X, alpha);
-			float renderY = MathHelper.Lerp(prevPos.Y, pos.Y, alpha);
+			// ARCHITECTURE FIX: Strict sub-pixel rounding to lock the rendering entity to the physical monitor grid
+			float renderX = MathF.Round(MathHelper.Lerp(prevPos.X, pos.X, alpha));
+			float renderY = MathF.Round(MathHelper.Lerp(prevPos.Y, pos.Y, alpha));
 			Vector2 drawPos = new Vector2(renderX, renderY);
 
 			SpriteEffects fx = facing.Value < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
@@ -36,7 +37,7 @@ public static class PlaceholderPlayerRenderer
 
 			if (e.Has<TopDownTag>())
 			{
-				origin = new Vector2(0.5f, 0.5f); // Center of a 1x1 pixel
+				origin = new Vector2(0.5f, 0.5f);
 				scale = new Vector2(8f, 8f);
 			}
 			else

@@ -1,18 +1,17 @@
-﻿using Steamworks;
-
-namespace MyGame.Engine.StandardModules.Multiplayer;
+﻿namespace MyGame.Engine.StandardModules.Multiplayer;
 
 public enum GameEventType : byte
 {
 	Damage,
 	InteractSwitch,
 	Despawn,
-	ClaimAuthority // Native event allowing dynamic take-overs of specific entities (seats)
+	ClaimAuthority
 }
 
 public struct NetworkOwner
 {
-	public SteamId Value;
+	// ARCHITECTURE FIX: Was SteamId. Now generic ulong. Zero API coupling.
+	public ulong Value;
 }
 
 public struct NetworkId

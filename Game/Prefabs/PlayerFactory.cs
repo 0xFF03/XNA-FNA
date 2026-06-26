@@ -1,36 +1,31 @@
-﻿using Flecs.NET.Core;
-using Steamworks;
-using nkast.Aether.Physics2D.Dynamics;
+﻿using nkast.Aether.Physics2D.Dynamics;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Multiplayer;
 using MyGame.Engine.StandardModules.Combat;
 using MyGame.Engine.StandardModules.Physics2D;
-using MyGame.Engine.Platform;
-using MyGame.Engine.Core;
 using MyGame.Game.Core;
 using MyGame.Game.Registries;
 
+using FlecsWorld = Flecs.NET.Core.World;
+using FlecsEntity = Flecs.NET.Core.Entity;
 using AetherVector2 = nkast.Aether.Physics2D.Common.Vector2;
 
 namespace MyGame.Prefabs;
 
-public static class PhysicsLayers
-{
-    public const Category Environment = Category.Cat1;
-    public const Category LocalPlayer = Category.Cat2;
-    public const Category RemotePlayer = Category.Cat3;
-    public const Category EnemyAndProjectiles = Category.Cat4;
-}
-
 public static class PlayerFactory
 {
-    private static bool CheckIfMapIsTopDown(Flecs.NET.Core.World world)
+    private static bool CheckIfMapIsTopDown(FlecsWorld world)
     {
-        bool isTopDown = false;
-        world.QueryBuilder<MapComponents.MapInstance>().Build().Each((ref MapComponents.MapInstance map) => { isTopDown = map.Data.IsTopDown; });
-        return isTopDown;
+        // ARCHITECTURE FIX: O(1) direct entity lookup. Zero allocations, no query leaks.
+        var mapEntity = world.Entity("GlobalMapData");
+        if (mapEntity.IsAlive() && mapEntity.Has<MapComponents.MapInstance>())
+        {
+            return mapEntity.Get<MapComponents.MapInstance>().Data.IsTopDown;
+        }
+        return true;
     }
 
-    public static Entity CreateLocal(Flecs.NET.Core.World world, int classId, ulong uniqueId, float spawnX, float spawnY, string targetPhysicsWorld = "MacroSpace")
+    public static FlecsEntity CreateLocal(FlecsWorld world, int classId, ulong uniqueId, float spawnX, float spawnY, string targetPhysicsWorld = "MacroSpace")
     {
         string entityLookupName = $"p_{uniqueId}";
         var initialPosition = new AetherVector2(spawnX / PhysicsSettings.PixelsPerMeter, spawnY / PhysicsSettings.PixelsPerMeter);
@@ -51,20 +46,20 @@ public static class PlayerFactory
         if (aetherBody.FixtureList.Count > 0)
         {
            aetherBody.FixtureList[0].CollisionCategories = PhysicsLayers.LocalPlayer;
-           // ARCHITECTURE FIX: Removed RemotePlayer so co-op players do not physically block each other
            aetherBody.FixtureList[0].CollidesWith = PhysicsLayers.Environment | PhysicsLayers.EnemyAndProjectiles;
         }
 
-        SteamId safeOwnerId = SteamManager.IsSteamActive ? SteamClient.SteamId : (SteamId)0;
+        ulong safeOwnerId = NetworkServiceLocator.Provider.IsActive ? NetworkServiceLocator.Provider.LocalUserId : 0;
         var classDef = ClassRegistry.GetClass(classId);
 
-        Entity e = world.Entity(entityLookupName)
+        FlecsEntity e = world.Entity(entityLookupName)
            .Add<LocalPlayerTag>()
            .Add<MatchEntityTag>()
-           .Set(new LocalInput { AxisX = 0, AxisY = 0, JumpJustPressed = false })
+           .Add<LinearDriveTag>()
+           .Set(new LocalInput { AxisX = 0, AxisY = 0, JumpJustPressed = false, WorldMousePosition = Microsoft.Xna.Framework.Vector2.Zero })
            .Set(new GroundState { IsGrounded = false, CoyoteTimer = 0f })
-           .Set(new Position { X = spawnX, Y = spawnY })
-           .Set(new PreviousPosition { X = spawnX, Y = spawnY })
+           .Set(new Position { X = spawnX, Y = spawnY, Rotation = 0f })
+           .Set(new PreviousPosition { X = spawnX, Y = spawnY, Rotation = 0f })
            .Set(new Velocity { X = 0, Y = 0 })
            .Set(new PreviousVelocity { X = 0, Y = 0 })
            .Set(new CharacterClass { Id = classId })
@@ -85,7 +80,7 @@ public static class PlayerFactory
         return e;
     }
 
-    public static Entity CreateRemote(Flecs.NET.Core.World world, string entityKey, PlayerTransformPacket packet, SteamId senderId, string targetPhysicsWorld = "MacroSpace")
+    public static FlecsEntity CreateRemote(FlecsWorld world, string entityKey, PlayerTransformPacket packet, ulong senderId, string targetPhysicsWorld = "MacroSpace")
     {
         var startPos = new AetherVector2(packet.X / PhysicsSettings.PixelsPerMeter, packet.Y / PhysicsSettings.PixelsPerMeter);
 
@@ -99,12 +94,13 @@ public static class PlayerFactory
         aetherBody.Tag = packet.EntityNetworkSequenceId;
         var classDef = ClassRegistry.GetClass(packet.CharacterClassId);
 
-        Entity e = world.Entity(entityKey)
+        FlecsEntity e = world.Entity(entityKey)
             .Add<RemotePlayerTag>()
             .Add<MatchEntityTag>()
-            .Set(new Position { X = packet.X, Y = packet.Y })
-            .Set(new PreviousPosition { X = packet.X, Y = packet.Y })
-            .Set(new TargetPosition { X = packet.X, Y = packet.Y })
+            .Add<LinearDriveTag>()
+            .Set(new Position { X = packet.X, Y = packet.Y, Rotation = packet.Rotation })
+            .Set(new PreviousPosition { X = packet.X, Y = packet.Y, Rotation = packet.Rotation })
+            .Set(new TargetPosition { X = packet.X, Y = packet.Y, Rotation = packet.Rotation })
             .Set(new Velocity { X = packet.Vx, Y = packet.Vy })
             .Set(new CharacterClass { Id = packet.CharacterClassId })
             .Set(new MovementCapabilities { MoveSpeed = classDef.MovementSpeed, JumpForce = classDef.JumpForce })

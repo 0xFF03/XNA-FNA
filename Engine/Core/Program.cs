@@ -13,18 +13,19 @@ public static class Program
 		AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
 		{
 			Exception ex = (Exception)args.ExceptionObject;
-			EngineLogger.LogError("FATAL ENGINE CRASH", ex);
+			// ARCHITECTURE FIX: Bypasses the async queue to guarantee the error hits the disk
+			EngineLogger.LogFatalSync("FATAL ENGINE CRASH", ex);
 			EngineLogger.Shutdown();
+			Environment.Exit(1); // Prevents unresponsive ghost windows
 		};
 
 #if DEBUG
 		AppDomain.CurrentDomain.FirstChanceException += (sender, eventArgs) =>
 		{
-			EngineLogger.Log($"FirstChanceException detected: {eventArgs.Exception.Message}", "DIAGNOSTIC");
+			// First chance exceptions are normal in .NET (e.g. handled try/catch), only log them to console, not disk
+			Console.WriteLine($"[DIAGNOSTIC] FirstChanceException: {eventArgs.Exception.Message}");
 		};
 #endif
-
-		SteamManager.Initialize();
 
 		using var game = new Game1();
 		game.Run();

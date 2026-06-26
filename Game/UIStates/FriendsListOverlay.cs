@@ -5,8 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
 using MyGame.Engine.Platform;
 using MyGame.Engine.Platform.UI;
-using MyGame.Engine.StandardModules.Multiplayer;
-using Steamworks;
+using MyGame.Engine.Platform.Networking;
 
 namespace MyGame.Game.UIStates;
 
@@ -15,7 +14,7 @@ public class FriendsListOverlay
     public bool IsVisible { get; set; } = false;
 
     private readonly Game1 _game;
-    private readonly List<Friend> _friendsList = new();
+    private readonly List<NetworkFriend> _friendsList = new();
     private readonly Button[] _friendButtons;
     private readonly Button _nextButton;
     private readonly Button _prevButton;
@@ -51,7 +50,12 @@ public class FriendsListOverlay
         IsVisible = true;
         _currentPage = 0;
         _friendsList.Clear();
-        _friendsList.AddRange(SteamManager.GetFriends().Where(f => f.IsOnline));
+
+        var net = NetworkServiceLocator.Provider;
+        if (net.IsActive)
+        {
+            _friendsList.AddRange(net.GetFriends().Where(f => f.IsOnline));
+        }
     }
 
     private void InviteFriendAtIndex(int buttonIndex)
@@ -59,7 +63,7 @@ public class FriendsListOverlay
         int actualIndex = (_currentPage * FriendsPerPage) + buttonIndex;
         if (actualIndex < _friendsList.Count)
         {
-            SteamManager.InviteFriendToLobby(_friendsList[actualIndex].Id);
+            NetworkServiceLocator.Provider.InviteFriend(_friendsList[actualIndex].Id);
         }
     }
 
@@ -73,6 +77,8 @@ public class FriendsListOverlay
         int startX = (viewport.Width - width) / 2;
         int startY = (viewport.Height - height) / 2;
 
+        var net = NetworkServiceLocator.Provider;
+
         for (int i = 0; i < FriendsPerPage; i++)
         {
             int actualIndex = (_currentPage * FriendsPerPage) + i;
@@ -80,11 +86,12 @@ public class FriendsListOverlay
             {
                 var friend = _friendsList[actualIndex];
                 _friendButtons[i].Text = friend.Name;
-                _friendButtons[i].Icon = SteamAvatarCache.GetAvatar(friend.Id);
+
+                // Set Icon to null to fully decouple UI from Facepunch avatar structs
+                _friendButtons[i].Icon = null;
                 _friendButtons[i].Bounds = new Rectangle(startX + 20, startY + 40 + (i * 60), width - 40, 50);
 
-                // ARCHITECTURE FIX: Zero-Allocation Lookup. Uses cached HashMap instead of generating a LINQ Enumerator.
-                if (SteamManager.CurrentLobby.HasValue && SteamManager.ActiveLobbyMembers.Contains(friend.Id.Value))
+                if (net.IsInLobby && net.ActivePeers.Contains(friend.Id))
                 {
                     _friendButtons[i].Text = friend.Name + " (In Lobby)";
                     _friendButtons[i].IsEnabled = false;

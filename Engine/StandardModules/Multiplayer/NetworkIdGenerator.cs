@@ -1,6 +1,5 @@
 ﻿using System;
-using Steamworks;
-using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.Networking;
 
 namespace MyGame.Engine.StandardModules.Multiplayer;
 
@@ -12,11 +11,13 @@ public static class NetworkIdGenerator
 	public static ulong GetNextNetworkId()
 	{
 		_entityCounter++;
+		var net = NetworkServiceLocator.Provider;
 
-		if (SteamManager.IsSteamActive)
+		if (net.IsActive)
 		{
-			ulong accountId = SteamClient.SteamId.AccountId;
-			return (accountId << 32) | _entityCounter;
+			// Truncates the ulong safely to 32 bits to fit into the left-shift generator
+			uint partialId = (uint)(net.LocalUserId & 0xFFFFFFFF);
+			return ((ulong)partialId << 32) | _entityCounter;
 		}
 
 		if (_offlineSessionSeed == 0)
@@ -28,7 +29,6 @@ public static class NetworkIdGenerator
 		return (_offlineSessionSeed << 32) | _entityCounter;
 	}
 
-	// ARCHITECTURE FIX: Creates identical Network IDs across all clients based on map strings
 	public static ulong GetDeterministicNetworkId(string stringSeed)
 	{
 		if (string.IsNullOrEmpty(stringSeed)) return GetNextNetworkId();

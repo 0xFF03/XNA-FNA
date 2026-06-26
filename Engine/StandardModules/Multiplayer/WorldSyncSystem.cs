@@ -2,9 +2,9 @@
 using System.Buffers;
 using System.Collections.Generic;
 using Flecs.NET.Core;
-using Steamworks;
 using MemoryPack;
-using MyGame.Engine.Platform;
+using MyGame.Engine.Core;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Combat;
 using MyGame.Game.Core;
 
@@ -15,10 +15,12 @@ public static class WorldSyncSystem
     [ThreadStatic] private static ArrayBufferWriter<byte>? _bufferWriter;
     [ThreadStatic] private static byte[]? _reusableBuffer;
 
-    public static void SendWorldSnapshot(World world, SteamId newPlayerId)
+    public static void SendWorldSnapshot(World world, ulong newPlayerId)
     {
-        if (!SteamManager.KnownHostId.HasValue || SteamManager.KnownHostId.Value != SteamClient.SteamId) return;
+        var net = NetworkServiceLocator.Provider;
+        if (!net.HostId.HasValue || net.HostId.Value != net.LocalUserId) return;
 
+        EngineLogger.Log($"Generating World Snapshot for late-joiner: {newPlayerId}", "NETWORK");
         var snapshots = new List<EntitySnapshot>();
 
         var syncQuery = world.QueryBuilder<Position, NetworkId, NetworkOwner, PhysicsDimension>().Build();
@@ -38,7 +40,7 @@ public static class WorldSyncSystem
                 Y = pos.Y,
                 Health = hp,
                 FacingDirection = dir,
-                OwnerSteamId = owner.Value.Value,
+                OwnerSteamId = owner.Value,
                 TargetPhysicsWorld = dimension.Name
             });
         });
@@ -46,8 +48,6 @@ public static class WorldSyncSystem
         var marksQuery = world.QueryBuilder<Position, WorldMark>().Build();
         marksQuery.Each((Entity e, ref Position pos, ref WorldMark mark) =>
         {
-            // ARCHITECTURE FIX: Flawless Spatial Catch-Up.
-            // Transmits actual X and Y coordinates. Interaction state is safely packed into Health.
             snapshots.Add(new EntitySnapshot
             {
                 NetworkId = e.Id,
@@ -76,6 +76,7 @@ public static class WorldSyncSystem
         MemoryPackSerializer.Serialize(_bufferWriter, packet);
         _bufferWriter.WrittenSpan.CopyTo(_reusableBuffer);
 
-        SteamNetworking.SendP2PPacket(newPlayerId, _reusableBuffer, _bufferWriter.WrittenCount, 1, P2PSend.Reliable);
+        EngineLogger.Log($"Transmitting World Snapshot ({snapshots.Count} entities, {_bufferWriter.WrittenCount} bytes) to {newPlayerId}", "NETWORK");
+        net.SendPacket(newPlayerId, _reusableBuffer, _bufferWriter.WrittenCount, 1, reliable: true);
     }
 }

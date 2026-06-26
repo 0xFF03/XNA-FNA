@@ -13,6 +13,7 @@ public static class GameActions
     public const string Jump = "Jump";
     public const string Pause = "Pause";
     public const string Interact = "Interact";
+    public const string FlightToggle = "FlightToggle"; // ARCHITECTURE FIX: Native flight bind
 }
 
 public static class InputManager
@@ -31,7 +32,7 @@ public static class InputManager
         { GameActions.MoveUp, Keys.W }, { GameActions.MoveDown, Keys.S },
         { GameActions.MoveLeft, Keys.A }, { GameActions.MoveRight, Keys.D },
         { GameActions.Jump, Keys.Space }, { GameActions.Pause, Keys.Escape },
-        { GameActions.Interact, Keys.F } // Changed from Keys.E to Keys.F
+        { GameActions.Interact, Keys.F }, { GameActions.FlightToggle, Keys.J }
     };
 
     public static void Update()

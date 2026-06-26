@@ -16,7 +16,6 @@ public static class PlaceholderProjectileRenderer
 		_projectileQuery = world.QueryBuilder<Position, PreviousPosition, PhysicsDimension>().With<BaseCombatComponents.ProjectileTag>().Build();
 	}
 
-	// Inside PlaceholderProjectileRenderer.cs:
 	public static void Draw(SpriteBatch spriteBatch, float alpha, string activeDimension)
 	{
 		_projectileQuery.Each((ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim) =>

@@ -64,3 +64,4 @@ C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tile
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tileset Stone Ground.png
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\TX Tileset Wall.png
 C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\ShipExterior.png
+C:\Users\Petri\Desktop\Dev\FNA\MyGame\bin\Debug\net10.0\Content\Textures\Cruiser.png

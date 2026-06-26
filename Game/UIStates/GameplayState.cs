@@ -1,79 +1,126 @@
 ﻿using System;
+using MemoryPack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
 using MyGame.Engine.Platform;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Multiplayer;
-using MyGame.Engine.StandardModules.Rendering2D;
 using MyGame.Engine.StandardModules.Physics2D;
 using MyGame.Engine.StandardModules.Combat;
-using Flecs.NET.Core;
-using Steamworks;
 using MyGame.Game.Core;
 using MyGame.Game.Logic;
+using MyGame.Prefabs;
+using MyGame.Game.Rendering;
 
-using XnaColor = Microsoft.Xna.Framework.Color;
+using FlecsWorld = Flecs.NET.Core.World;
+using FlecsEntity = Flecs.NET.Core.Entity;
 
 namespace MyGame.Game.UIStates;
 
 public class GameplayState : GameState
 {
-    private readonly World ecsWorld;
-
+    private readonly FlecsWorld ecsWorld;
     private PauseMenuOverlay pauseMenu = null!;
-    private Camera2D camera = null!;
     private RenderTarget2D virtualRenderTarget = null!;
+    private GameplayRenderer sceneRenderer = null!;
 
     public const int VirtualWidth = 480;
     public const int VirtualHeight = 270;
     private readonly bool isHostOrigin;
 
-    private Query<Position, PreviousPosition, PhysicsDimension, BaseCombatComponents.Health> _localPlayerQuery;
+    private Flecs.NET.Core.Query<Position, PreviousPosition, PhysicsDimension, BaseCombatComponents.Health> _localPlayerQuery;
+    private Flecs.NET.Core.Query<LocalInput> _inputQuery;
 
-    private static float _drawAlpha;
-    private static Camera2D _drawCamera = null!;
+    private ulong _activeInteriorVehicleId = 0;
+    private string _activeExteriorDimension = "MacroSpace";
+    private CameraViewMode _currentViewMode = CameraViewMode.InteriorCrew;
+    private float _activeAltitudeRatio = 0f;
+
+    private Vector2 _smoothedPanOffset = Vector2.Zero;
 
     public bool IsSimulationPaused => pauseMenu != null && pauseMenu.IsPaused;
 
-    public GameplayState(Game1 game, StateManager stateManager, World sharedWorld)
+    public GameplayState(Game1 game, StateManager stateManager, FlecsWorld sharedWorld)
         : base(game, stateManager)
     {
         ecsWorld = sharedWorld;
-        isHostOrigin = !SteamManager.KnownHostId.HasValue || SteamManager.KnownHostId.Value == SteamClient.SteamId;
+
+        var net = NetworkServiceLocator.Provider;
+        isHostOrigin = !net.HostId.HasValue || net.HostId.Value == net.LocalUserId;
 
         if (SaveManager.CurrentProfile == null)
-            EngineLogger.Log("GameplayState initialized without an active save profile!", "FATAL");
+            EngineLogger.LogFatalSync("GameplayState initialized without an active save profile!", new Exception("SaveProfile Null"));
     }
 
     public override void LoadContent()
     {
         virtualRenderTarget = new RenderTarget2D(game.GraphicsDevice, VirtualWidth, VirtualHeight, false, SurfaceFormat.Color, DepthFormat.None);
         pauseMenu = new PauseMenuOverlay(game, stateManager, isHostOrigin);
+        sceneRenderer = new GameplayRenderer();
 
         _localPlayerQuery = ecsWorld.QueryBuilder<Position, PreviousPosition, PhysicsDimension, BaseCombatComponents.Health>().With<LocalPlayerTag>().Build();
+        _inputQuery = ecsWorld.QueryBuilder<LocalInput>().With<LocalPlayerTag>().Build();
 
         pauseMenu.OnSaveSlotRequested += HandleManualSave;
         pauseMenu.OnLoadSlotRequested += HandleLoadRequest;
 
-        camera = new Camera2D();
-        camera.Zoom = 1.5f;
+        if (isHostOrigin) NetworkRouter.OnClientLoadedMap += HandleJoineeLoadedMap;
 
-        if (isHostOrigin && SteamManager.IsSteamActive && SteamManager.CurrentLobby.HasValue)
+        LevelManager.OnEntityParsed = MapEntityFactory.BuildEntity;
+
+        Engine.StandardModules.Rendering2D.PlaceholderVehicleRenderer.Initialize(ecsWorld);
+        Engine.StandardModules.Rendering2D.PlaceholderPlayerRenderer.Initialize(ecsWorld);
+        Engine.StandardModules.Rendering2D.PlaceholderProjectileRenderer.Initialize(ecsWorld);
+
+        InitializeGameSession();
+    }
+
+    private void InitializeGameSession()
+    {
+        var profile = SaveManager.CurrentProfile!;
+
+        LevelManager.EnsureDimensionLoaded(ecsWorld, profile.CurrentDimension);
+
+        var loadedRoom = LevelManager.GetCachedLevel(profile.CurrentDimension);
+        if (loadedRoom != null) ecsWorld.Entity("GlobalMapData").Set(new MapComponents.MapInstance { Data = loadedRoom });
+
+        float spawnX = profile.CheckpointX != -1 ? profile.CheckpointX : loadedRoom?.SpawnPoint.X ?? 100f;
+        float spawnY = profile.CheckpointY != -1 ? profile.CheckpointY : loadedRoom?.SpawnPoint.Y ?? 100f;
+
+        ulong myNetId = NetworkIdGenerator.GetNextNetworkId();
+        PlayerFactory.CreateLocal(ecsWorld, profile.CharacterClassId, myNetId, spawnX, spawnY, profile.CurrentDimension);
+
+        var net = NetworkServiceLocator.Provider;
+        if (net.IsActive && net.IsInLobby)
         {
-            SteamManager.CurrentLobby.Value.SetData("GameState", "InGame");
-            NetworkRouter.OnClientLoadedMap += HandleJoineeLoadedMap;
+            var handshakePayload = new PlayerSpawnPacket
+            {
+                CharacterClassId = profile.CharacterClassId,
+                StartX = spawnX,
+                StartY = spawnY,
+                EntityNetworkSequenceId = myNetId,
+                TargetPhysicsWorld = profile.CurrentDimension
+            };
+
+            byte[] payload = MemoryPackSerializer.Serialize(handshakePayload);
+            byte[] networkBuffer = new byte[payload.Length + 1];
+            networkBuffer[0] = PacketTypes.Spawn;
+            Buffer.BlockCopy(payload, 0, networkBuffer, 1, payload.Length);
+
+            net.BroadcastPacket(networkBuffer, networkBuffer.Length, 1, reliable: true);
+
+            if (!isHostOrigin && net.HostId.HasValue)
+            {
+                byte[] readySignal = new byte[] { PacketTypes.ClientLoadedMap };
+                net.SendPacket(net.HostId.Value, readySignal, 1, 2, reliable: true);
+            }
         }
-
-        PlaceholderVehicleRenderer.Initialize(ecsWorld);
-        PlaceholderPlayerRenderer.Initialize(ecsWorld);
-        PlaceholderProjectileRenderer.Initialize(ecsWorld);
-
-        LevelManager.LoadInitialWorld(ecsWorld, SaveManager.CurrentProfile!, isHostOrigin);
     }
 
     private void HandleManualSave(int slotId)
     {
-        _localPlayerQuery.Each((Entity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+        _localPlayerQuery.Each((FlecsEntity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
         {
             var profile = SaveManager.CurrentProfile!;
             SaveManager.SaveToSlot(slotId, $"Manual Save {slotId}", profile.CurrentMapPath, pos.X, pos.Y, hp.Current, dim.Name, 0f);
@@ -86,20 +133,20 @@ public class GameplayState : GameState
         stateManager.ChangeState(new GameplayState(game, stateManager, ecsWorld));
     }
 
-    private void HandleJoineeLoadedMap(SteamId joineeId)
-    {
-        WorldSyncSystem.SendWorldSnapshot(ecsWorld, joineeId);
-    }
+    private void HandleJoineeLoadedMap(ulong joineeId) => WorldSyncSystem.SendWorldSnapshot(ecsWorld, joineeId);
 
     public override void UnloadContent()
     {
         pauseMenu.OnSaveSlotRequested -= HandleManualSave;
         pauseMenu.OnLoadSlotRequested -= HandleLoadRequest;
         pauseMenu.Unload();
-        NetworkRouter.OnClientLoadedMap -= HandleJoineeLoadedMap;
+
+        if (isHostOrigin) NetworkRouter.OnClientLoadedMap -= HandleJoineeLoadedMap;
+
+        LevelManager.OnEntityParsed = null;
 
         using var cleanupQuery = ecsWorld.QueryBuilder().With<MatchEntityTag>().Build();
-        cleanupQuery.Each((Entity e) => { if (e.IsAlive()) e.Destruct(); });
+        cleanupQuery.Each((FlecsEntity e) => { if (e.IsAlive()) e.Destruct(); });
 
         var mapEntity = ecsWorld.Entity("GlobalMapData");
         if (mapEntity.Has<MapComponents.MapInstance>()) mapEntity.Remove<MapComponents.MapInstance>();
@@ -114,43 +161,89 @@ public class GameplayState : GameState
 
     public override void Update(float deltaTime)
     {
+        var net = NetworkServiceLocator.Provider;
+
         if (SaveManager.CurrentProfile == null)
         {
-            SteamManager.LeaveLobby();
+            net.LeaveLobby();
             stateManager.ChangeState(new MainMenuState(game, stateManager));
             return;
         }
 
-        if (SteamManager.IsSteamActive && SteamManager.CurrentLobby.HasValue)
+        if (net.IsActive && net.IsInLobby && (!isHostOrigin && (!net.HostId.HasValue || net.HostId.Value == 0)))
         {
-            if (!isHostOrigin && (!SteamManager.KnownHostId.HasValue || SteamManager.KnownHostId.Value == 0))
-            {
-                SteamManager.LeaveLobby();
-                stateManager.ChangeState(new MainMenuState(game, stateManager));
-                return;
-            }
+            net.LeaveLobby();
+            stateManager.ChangeState(new MainMenuState(game, stateManager));
+            return;
         }
 
         pauseMenu.Update();
 
         if (!IsSimulationPaused)
         {
+            Camera2D activeCamera = _currentViewMode == CameraViewMode.ExteriorPiloting ? sceneRenderer.ExteriorCamera : sceneRenderer.Camera;
+            Vector2 worldMouse = InputManager.GetWorldMousePosition(activeCamera, VirtualWidth, VirtualHeight, game.GraphicsDevice.PresentationParameters.BackBufferWidth, game.GraphicsDevice.PresentationParameters.BackBufferHeight);
+
+            _inputQuery.Each((ref LocalInput input) =>
+            {
+                input.WorldMousePosition = worldMouse;
+            });
+
+            // ARCHITECTURE FIX: Fetch the exact altitude ratio dynamically so the Camera Pan can use it instantly
+            _activeAltitudeRatio = 0f;
+            _localPlayerQuery.Each((FlecsEntity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+            {
+                if (player.Has<HelmControl>())
+                {
+                    var helm = player.Get<HelmControl>();
+                    if (helm.ControlledVehicle.Id != 0 && helm.ControlledVehicle.Has<VehicleFlightState>())
+                    {
+                        _activeAltitudeRatio = helm.ControlledVehicle.Get<VehicleFlightState>().AltitudeRatio;
+                    }
+                }
+            });
+
+            if (_currentViewMode == CameraViewMode.ExteriorPiloting)
+            {
+                Point rawMouse = InputManager.GetScreenMousePosition();
+                Vector2 screenCenter = new Vector2(game.GraphicsDevice.PresentationParameters.BackBufferWidth / 2f, game.GraphicsDevice.PresentationParameters.BackBufferHeight / 2f);
+
+                // ARCHITECTURE FIX: Panning multiplier transitions from a gentle 10% on the ground to an aggressive 70% in deep space!
+                float panMultiplier = MathHelper.Lerp(0.1f, 0.7f, _activeAltitudeRatio);
+                Vector2 targetPanOffset = (new Vector2(rawMouse.X, rawMouse.Y) - screenCenter) * panMultiplier;
+                _smoothedPanOffset = Vector2.Lerp(_smoothedPanOffset, targetPanOffset, 1f - MathF.Exp(-5f * deltaTime));
+            }
+            else
+            {
+                _smoothedPanOffset = Vector2.Lerp(_smoothedPanOffset, Vector2.Zero, 1f - MathF.Exp(-10f * deltaTime));
+            }
+
             ecsWorld.Progress(deltaTime);
 
-            // ARCHITECTURE FIX: Flush and update active dimensions natively per logic tick
-            PhysicsWorldManager.ActiveDimensions.Clear();
-
-            _localPlayerQuery.Each((Entity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+            _localPlayerQuery.Each((FlecsEntity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
             {
-                PhysicsWorldManager.ActiveDimensions.Add(dim.Name);
-
                 var profile = SaveManager.CurrentProfile!;
                 if (profile.CurrentDimension != dim.Name)
                 {
-                    string leavingDimension = profile.CurrentDimension;
                     profile.CurrentDimension = dim.Name;
 
-                    LevelManager.HotReloadVisualMap(ecsWorld, dim.Name, player, leavingDimension);
+                    LevelManager.EnsureDimensionLoaded(ecsWorld, dim.Name);
+                    var loadedRoom = LevelManager.GetCachedLevel(dim.Name);
+                    if (loadedRoom != null) ecsWorld.Entity("GlobalMapData").Set(new MapComponents.MapInstance { Data = loadedRoom });
+
+                    int lastIdx = dim.Name.LastIndexOf('_');
+                    if (lastIdx >= 0 && ulong.TryParse(dim.Name.Substring(lastIdx + 1), out ulong netId))
+                    {
+                        _activeInteriorVehicleId = netId;
+                        FlecsEntity parentShip = NetworkRegistry.GetEntity(netId);
+                        if (parentShip.IsAlive() && parentShip.Has<PhysicsDimension>())
+                            _activeExteriorDimension = parentShip.Get<PhysicsDimension>().Name;
+                    }
+                    else
+                    {
+                        _activeInteriorVehicleId = 0;
+                        _activeExteriorDimension = dim.Name;
+                    }
                 }
             });
         }
@@ -160,13 +253,13 @@ public class GameplayState : GameState
     {
         if (SaveManager.CurrentProfile == null) return;
 
-        _drawAlpha = alpha;
-        _drawCamera = camera;
-        string activeDimension = "MacroSpace";
+        string interiorDimension = "MacroSpace";
+        Vector2 targetRenderPos = Vector2.Zero;
+        _currentViewMode = CameraViewMode.InteriorCrew;
 
-        _localPlayerQuery.Each((Entity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
+        _localPlayerQuery.Each((FlecsEntity player, ref Position pos, ref PreviousPosition prevPos, ref PhysicsDimension dim, ref BaseCombatComponents.Health hp) =>
         {
-            activeDimension = dim.Name;
+            interiorDimension = dim.Name;
 
             float targetX = pos.X;
             float targetY = pos.Y;
@@ -180,6 +273,9 @@ public class GameplayState : GameState
                 {
                     var vPos = helm.ControlledVehicle.Get<Position>();
                     var vPrev = helm.ControlledVehicle.Has<PreviousPosition>() ? helm.ControlledVehicle.Get<PreviousPosition>() : new PreviousPosition { X = vPos.X, Y = vPos.Y };
+
+                    _currentViewMode = CameraViewMode.ExteriorPiloting;
+
                     targetX = vPos.X;
                     targetY = vPos.Y;
                     prevTargetX = vPrev.X;
@@ -187,22 +283,14 @@ public class GameplayState : GameState
                 }
             }
 
-            float lerpX = MathHelper.Lerp(prevTargetX, targetX, _drawAlpha);
-            float lerpY = MathHelper.Lerp(prevTargetY, targetY, _drawAlpha);
-            _drawCamera.Position = new Vector2(lerpX, lerpY); // Removed integer cast for buttery smooth camera
+            float lerpX = MathHelper.Lerp(prevTargetX, targetX, alpha);
+            float lerpY = MathHelper.Lerp(prevTargetY, targetY, alpha);
+            targetRenderPos = new Vector2(lerpX, lerpY);
+
+            targetRenderPos += _smoothedPanOffset;
         });
 
-        game.GraphicsDevice.SetRenderTarget(virtualRenderTarget);
-        game.GraphicsDevice.Clear(XnaColor.FromNonPremultiplied(40, 35, 50, 255));
-
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, null, null, null, camera.GetViewMatrix(VirtualWidth, VirtualHeight));
-
-        TileMapRenderer.Draw(camera, VirtualWidth, VirtualHeight);
-        PlaceholderVehicleRenderer.Draw(spriteBatch, alpha, activeDimension);
-        PlaceholderPlayerRenderer.Draw(spriteBatch, alpha, activeDimension);
-        PlaceholderProjectileRenderer.Draw(spriteBatch, alpha, activeDimension);
-
-        spriteBatch.End();
+        sceneRenderer.DrawScene(spriteBatch, game.GraphicsDevice, virtualRenderTarget, alpha, _currentViewMode, _activeAltitudeRatio, targetRenderPos, interiorDimension, _activeExteriorDimension, _activeInteriorVehicleId, VirtualWidth, VirtualHeight);
 
         game.GraphicsDevice.SetRenderTarget(null);
         game.GraphicsDevice.Clear(Color.Black);

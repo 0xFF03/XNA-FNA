@@ -4,12 +4,14 @@ public struct Position
 {
 	public float X;
 	public float Y;
+	public float Rotation;
 }
 
 public struct PreviousPosition
 {
 	public float X;
 	public float Y;
+	public float Rotation;
 }
 
 public struct Velocity
@@ -22,6 +24,7 @@ public struct TargetPosition
 {
 	public float X;
 	public float Y;
+	public float Rotation;
 }
 
 public struct PreviousVelocity

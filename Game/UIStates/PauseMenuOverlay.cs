@@ -5,8 +5,8 @@ using Microsoft.Xna.Framework.Graphics;
 using MyGame.Engine.Core;
 using MyGame.Engine.Platform;
 using MyGame.Engine.Platform.UI;
+using MyGame.Engine.Platform.Networking;
 using MyGame.Engine.StandardModules.Multiplayer;
-using Steamworks;
 using FontStashSharp;
 using MyGame.Game.Logic;
 
@@ -84,22 +84,23 @@ public class PauseMenuOverlay
         loadButton.OnClick += () => { currentMode = PauseMenuMode.Load; RefreshSaveSlots(false); };
         optionsButton.OnClick += () => stateManager.PushState(new OptionsState(game, stateManager));
 
-        hostSessionButton.OnClick += async () =>
+        hostSessionButton.OnClick += () =>
         {
-            if (SteamManager.IsSteamActive && !SteamManager.CurrentLobby.HasValue)
+            var net = NetworkServiceLocator.Provider;
+            if (net.IsActive && !net.IsInLobby)
             {
-                await SteamManager.CreateLobby();
+                net.CreateLobby();
             }
         };
 
         sessionMenuButton.OnClick += () => currentMode = PauseMenuMode.Session;
         sessionBackButton.OnClick += () => { currentMode = PauseMenuMode.Main; friendsOverlay.IsVisible = false; };
         sessionInviteButton.OnClick += () => friendsOverlay.Show();
-        sessionCloseLobbyButton.OnClick += () => { SteamManager.LeaveLobby(); currentMode = PauseMenuMode.Main; };
+        sessionCloseLobbyButton.OnClick += () => { NetworkServiceLocator.Provider.LeaveLobby(); currentMode = PauseMenuMode.Main; };
 
         exitButton.OnClick += () =>
         {
-            SteamManager.LeaveLobby();
+            NetworkServiceLocator.Provider.LeaveLobby();
             stateManager.ChangeState(new MainMenuState(game, stateManager));
         };
     }
@@ -143,15 +144,17 @@ public class PauseMenuOverlay
         }
     }
 
-    private void HandleNetworkPause(bool state, SteamId senderId)
+    private void HandleNetworkPause(bool state, ulong senderId)
     {
         IsPaused = state;
         currentMode = PauseMenuMode.Main;
 
-        if (IsPaused && SteamManager.IsSteamActive)
+        var net = NetworkServiceLocator.Provider;
+
+        if (IsPaused && net.IsActive && net.IsInLobby)
         {
-            // ARCHITECTURE FIX: Pulls from zero-allocation cache
-            if (senderId != SteamClient.SteamId && SteamManager.ActiveLobbyNames.TryGetValue(senderId.Value, out string friendName))
+            // ARCHITECTURE FIX: Validated variable assignment silences strict Nullable warnings
+            if (senderId != net.LocalUserId && net.PeerNames.TryGetValue(senderId, out var friendName))
                 pauseStatusText = $"Game Paused by {friendName}";
             else
                 pauseStatusText = "Game Paused";
@@ -176,7 +179,7 @@ public class PauseMenuOverlay
         int currentY = (viewport.Height / 2) - 160;
         int spacing = 55;
 
-        bool isOnline = SteamManager.CurrentLobby.HasValue;
+        bool isOnline = NetworkServiceLocator.Provider.IsInLobby;
 
         unpauseButton.Bounds = new Rectangle(centerX, currentY, 300, 45); currentY += spacing;
         unpauseButton.Update(mousePos, isClicked);
@@ -262,13 +265,10 @@ public class PauseMenuOverlay
 
         signalBuffer[0] = IsPaused ? PacketTypes.PauseGame : PacketTypes.ResumeGame;
 
-        ulong localId = SteamClient.SteamId.Value;
-        foreach (var memberId in SteamManager.ActiveLobbyMembers)
+        var net = NetworkServiceLocator.Provider;
+        if (net.IsActive && net.IsInLobby)
         {
-            if (memberId != localId)
-            {
-                SteamNetworking.SendP2PPacket(memberId, signalBuffer, signalBuffer.Length, 2, P2PSend.Reliable);
-            }
+            net.BroadcastPacket(signalBuffer, signalBuffer.Length, 2, reliable: true);
         }
     }
 
@@ -292,9 +292,11 @@ public class PauseMenuOverlay
 
         unpauseButton.Draw(spriteBatch);
         if (isHostOrigin) saveButton.Draw(spriteBatch);
-        if (isHostOrigin && !SteamManager.CurrentLobby.HasValue) loadButton.Draw(spriteBatch);
 
-        if (!SteamManager.CurrentLobby.HasValue) hostSessionButton.Draw(spriteBatch);
+        var net = NetworkServiceLocator.Provider;
+        if (isHostOrigin && !net.IsInLobby) loadButton.Draw(spriteBatch);
+
+        if (!net.IsInLobby) hostSessionButton.Draw(spriteBatch);
         else sessionMenuButton.Draw(spriteBatch);
 
         optionsButton.Draw(spriteBatch);
@@ -307,18 +309,20 @@ public class PauseMenuOverlay
         int centerX = (viewport.Width / 2) - 150;
         int startY = (viewport.Height / 2) - 150;
 
-        if (SteamManager.CurrentLobby is { } activeLobby && AssetManager.IsFontLoaded)
+        var net = NetworkServiceLocator.Provider;
+
+        if (net.IsInLobby && AssetManager.IsFontLoaded)
         {
             SpriteFontBase font = AssetManager.GetFont(20f);
             int listY = startY;
 
-            ulong hostId = activeLobby.Owner.Id.Value;
-            foreach (var memberId in SteamManager.ActiveLobbyMembers)
+            ulong hostId = net.HostId ?? 0;
+            foreach (var memberId in net.ActivePeers)
             {
                 string tag = (memberId == hostId) ? "[HOST] " : "[GUEST] ";
 
-                // ARCHITECTURE FIX: Pulls the zero-allocation cached string, preventing 14,400 GC creations per second.
-                string name = SteamManager.ActiveLobbyNames.TryGetValue(memberId, out string cachedName) ? cachedName : "Unknown";
+                // ARCHITECTURE FIX: Uses nullable fallback operator safely
+                string name = net.PeerNames.TryGetValue(memberId, out var cachedName) ? cachedName! : "Unknown";
 
                 font.DrawText(AssetManager.FontRenderer, tag + name, new System.Numerics.Vector2(centerX, listY), FSColor.White);
                 listY += 30;

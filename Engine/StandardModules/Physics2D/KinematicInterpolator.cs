@@ -11,6 +11,7 @@ public static class KinematicInterpolator
     public static void Register(Flecs.NET.Core.World world)
     {
         world.System<Position, TargetPosition, Velocity, NetworkSequence>("RemoteInterpolationSystem")
+            .Kind(Ecs.OnUpdate)
             .With<RemotePlayerTag>()
             .Without<LocalPlayerTag>()
             .Each((Iter it, int i, ref Position pos, ref TargetPosition target, ref Velocity velocity, ref NetworkSequence seq) =>
@@ -22,13 +23,16 @@ public static class KinematicInterpolator
                 {
                     pos.X = target.X;
                     pos.Y = target.Y;
+                    pos.Rotation = target.Rotation;
                 }
                 else
                 {
-                    // ARCHITECTURE FIX: Exponential decay ensures smooth interpolation regardless of client FPS
                     float smoothingRate = 1f - MathF.Exp(-12f * it.DeltaTime());
                     pos.X = MathHelper.Lerp(pos.X, target.X, smoothingRate);
                     pos.Y = MathHelper.Lerp(pos.Y, target.Y, smoothingRate);
+
+                    // Smooth path angle wrapping
+                    pos.Rotation = MathHelper.WrapAngle(MathHelper.Lerp(pos.Rotation, target.Rotation, smoothingRate));
                 }
 
                 Entity e = it.Entity(i);
@@ -42,6 +46,7 @@ public static class KinematicInterpolator
                             pos.X / PhysicsSettings.PixelsPerMeter,
                             pos.Y / PhysicsSettings.PixelsPerMeter);
 
+                        body.Rotation = pos.Rotation;
                         body.LinearVelocity = nkast.Aether.Physics2D.Common.Vector2.Zero;
                     }
                 }
